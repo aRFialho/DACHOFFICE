@@ -61,6 +61,8 @@ Every PR must run:
 3. tests;
 4. build.
 
+The workflow bootstrap lives on the default branch so pull-request runs are evaluated from a known CI baseline.
+
 ## Non-goals
 - no production Neon project changes;
 - no Render service creation;
