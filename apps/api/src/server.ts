@@ -9,6 +9,8 @@ import { createOfficeService } from "./modules/admin/office-service.js";
 import { PostgresAuthRepository } from "./modules/auth/postgres-repository.js";
 import { loadAuthRuntimeConfig } from "./modules/auth/runtime-config.js";
 import { createAuthService } from "./modules/auth/service.js";
+import { PostgresTaskRepository } from "./modules/tasks/postgres-task-repository.js";
+import { createTaskService } from "./modules/tasks/task-service.js";
 
 const runtimeConfig = loadAuthRuntimeConfig(process.env);
 const pool = new pg.Pool({ connectionString: runtimeConfig.databaseUrl });
@@ -21,12 +23,14 @@ const agentLifecycleService = createAgentLifecycleService(
 );
 const agentService = createAgentService(new PostgresAgentRepository(pool));
 const officeService = createOfficeService(new PostgresOfficeRepository(pool));
+const taskService = createTaskService(new PostgresTaskRepository(pool));
 const server = buildServer({
   authService,
   authTokenConfig: runtimeConfig.tokenConfig,
   agentService,
   agentLifecycleService,
   officeService,
+  taskService,
 });
 
 server.addHook("onClose", async () => {

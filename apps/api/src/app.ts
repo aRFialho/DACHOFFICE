@@ -11,6 +11,8 @@ import { registerAgentRoutes } from "./modules/admin/agent-routes.js";
 import type { AgentService } from "./modules/admin/agent-service.js";
 import { registerOfficeRoutes } from "./modules/admin/office-routes.js";
 import type { OfficeService } from "./modules/admin/office-service.js";
+import { registerTaskRoutes } from "./modules/tasks/task-routes.js";
+import type { TaskService } from "./modules/tasks/task-service.js";
 
 export interface BuildServerOptions {
   authService?: AuthService;
@@ -18,6 +20,7 @@ export interface BuildServerOptions {
   agentService?: AgentService;
   agentLifecycleService?: AgentLifecycleService;
   officeService?: OfficeService;
+  taskService?: TaskService;
 }
 
 export const buildServer = (options: BuildServerOptions = {}) => {
@@ -49,6 +52,12 @@ export const buildServer = (options: BuildServerOptions = {}) => {
     registerAgentLifecycleRoutes(server, {
       authService: options.authService,
       agentLifecycleService: options.agentLifecycleService,
+    });
+  }
+  if (options.authService && options.taskService) {
+    registerTaskRoutes(server, {
+      authService: options.authService,
+      taskService: options.taskService,
     });
   }
   return server;
