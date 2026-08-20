@@ -1,10 +1,13 @@
 import cookie from '@fastify/cookie';
 import Fastify from 'fastify';
 import { registerAuthRoutes, type AuthService, type AuthTokenConfig } from './modules/auth/index.js';
+import { registerOfficeRoutes } from './modules/admin/office-routes.js';
+import type { OfficeService } from './modules/admin/office-service.js';
 
 export interface BuildServerOptions {
   authService?: AuthService;
   authTokenConfig?: AuthTokenConfig;
+  officeService?: OfficeService;
 }
 
 export const buildServer = (options: BuildServerOptions = {}) => {
@@ -21,6 +24,13 @@ export const buildServer = (options: BuildServerOptions = {}) => {
     registerAuthRoutes(server, {
       authService: options.authService,
       tokenConfig: options.authTokenConfig,
+    });
+  }
+
+  if (options.authService && options.officeService) {
+    registerOfficeRoutes(server, {
+      authService: options.authService,
+      officeService: options.officeService,
     });
   }
 

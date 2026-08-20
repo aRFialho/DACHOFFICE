@@ -1,5 +1,7 @@
 import pg from 'pg';
 import { buildServer } from './app.js';
+import { PostgresOfficeRepository } from './modules/admin/postgres-office-repository.js';
+import { createOfficeService } from './modules/admin/office-service.js';
 import { PostgresAuthRepository } from './modules/auth/postgres-repository.js';
 import { loadAuthRuntimeConfig } from './modules/auth/runtime-config.js';
 import { createAuthService } from './modules/auth/service.js';
@@ -10,9 +12,11 @@ const authService = createAuthService({
   repository: new PostgresAuthRepository(pool),
   tokenConfig: runtimeConfig.tokenConfig,
 });
+const officeService = createOfficeService(new PostgresOfficeRepository(pool));
 const server = buildServer({
   authService,
   authTokenConfig: runtimeConfig.tokenConfig,
+  officeService,
 });
 
 server.addHook('onClose', async () => {
