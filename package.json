@@ -15,7 +15,8 @@
     "format:check": "prettier --check .",
     "queue:smoke": "pnpm --filter @dachbyte-office/worker queue:smoke",
     "db:health": "node --env-file=.env scripts/db-health.mjs",
-    "db:migrate": "node --env-file=.env scripts/db-migrate.mjs"
+    "db:migrate": "node --env-file=.env scripts/db-migrate.mjs",
+    "bootstrap:admin": "pnpm --filter @dachbyte-office/api build && node --env-file=.env apps/api/dist/src/scripts/bootstrap-admin.js"
   },
   "devDependencies": {
     "@eslint/js": "9.39.1",
