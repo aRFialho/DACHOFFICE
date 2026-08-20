@@ -1,5 +1,6 @@
-import type { FastifyInstance, FastifyRequest } from 'fastify';
+import type { FastifyInstance } from 'fastify';
 import type { AuthService } from '../auth/service.js';
+import { authenticateAdminMaster } from './admin-auth.js';
 import type { AgentService, CreateAgentInput } from './agent-service.js';
 
 const object = (value: unknown): Record<string, unknown> | null =>
@@ -7,13 +8,6 @@ const object = (value: unknown): Record<string, unknown> | null =>
 const text = (value: unknown): string | null => (typeof value === 'string' ? value : null);
 const textArray = (value: unknown): string[] | null =>
   Array.isArray(value) && value.every((item) => typeof item === 'string') ? value : null;
-
-const admin = async (request: FastifyRequest, authService: AuthService) => {
-  const header = request.headers.authorization;
-  if (!header?.startsWith('Bearer ')) return null;
-  const actor = await authService.authenticate(header.slice(7).trim());
-  return actor.user.role === 'admin_master' ? actor : null;
-};
 
 const parseSchedules = (value: unknown): CreateAgentInput['schedules'] | null => {
   if (!Array.isArray(value)) return null;
@@ -56,7 +50,7 @@ const parseInput = (body: unknown, userId: string): CreateAgentInput | null => {
 export const registerAgentRoutes = (server: FastifyInstance, options: { authService: AuthService; agentService: AgentService }): void => {
   server.post('/v1/admin/agents', async (request, reply) => {
     try {
-      const actor = await admin(request, options.authService);
+      const actor = await authenticateAdminMaster(request, options.authService);
       if (!actor) return reply.code(401).send({ error: 'unauthorized' });
       const input = parseInput(request.body, actor.user.id);
       if (!input) return reply.code(400).send({ error: 'invalid_agent_input' });
