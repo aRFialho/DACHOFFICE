@@ -10,3 +10,5 @@ coverage/
 .vite/
 .playwright/
 test-results/
+.audit-source/
+*.audit.png

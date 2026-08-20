@@ -1,0 +1,13 @@
+{
+  "name": "@dachbyte-office/worker",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "queue:smoke": "vitest run test/worker.test.ts"
+  },
+  "devDependencies": { "@types/node": "25.5.0", "typescript": "7.0.2", "vitest": "4.1.10" }
+}
