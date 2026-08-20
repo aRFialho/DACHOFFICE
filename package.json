@@ -14,7 +14,8 @@
     "lint": "eslint .",
     "format:check": "prettier --check .",
     "queue:smoke": "pnpm --filter @dachbyte-office/worker queue:smoke",
-    "db:health": "node --env-file=.env scripts/db-health.mjs"
+    "db:health": "node --env-file=.env scripts/db-health.mjs",
+    "db:migrate": "node --env-file=.env scripts/db-migrate.mjs"
   },
   "devDependencies": {
     "@eslint/js": "9.39.1",
