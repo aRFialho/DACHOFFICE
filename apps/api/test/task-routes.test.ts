@@ -46,7 +46,10 @@ describe("task routes", () => {
 
   it("creates a queued human task for the authenticated requester", async () => {
     const server = buildServer({
-      authService: createAuthService({ repository: authRepository, tokenConfig }),
+      authService: createAuthService({
+        repository: authRepository,
+        tokenConfig,
+      }),
       authTokenConfig: tokenConfig,
       taskService: createTaskService(taskRepository),
     });

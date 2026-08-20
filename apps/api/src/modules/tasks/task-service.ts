@@ -51,7 +51,9 @@ export class TaskService {
     required(input.title, "task title", 240);
     required(input.description, "task description", 20000);
     required(input.requestedByUserId, "requestedByUserId", 80);
-    if (!(["low", "normal", "high", "critical"] as const).includes(input.priority)) {
+    if (
+      !(["low", "normal", "high", "critical"] as const).includes(input.priority)
+    ) {
       throw new Error("task priority is invalid");
     }
     for (const item of input.context) {
