@@ -55,7 +55,10 @@ export class AuthService {
     ) {
       throw new AuthFailure();
     }
-    return this.#createResult(user);
+
+    const issued = await this.#issueResult(user);
+    await this.#repository.createSession(issued.session);
+    return issued.result;
   }
 
   async refresh(refreshToken: string): Promise<AuthResult> {
@@ -67,15 +70,14 @@ export class AuthService {
     const user = await this.#repository.findUserById(session.userId);
     if (!user || !user.active) throw new AuthFailure();
 
-    const result = await this.#createResult(user);
-    const replacement = this.#sessionFor(user.id, result.refreshToken);
+    const issued = await this.#issueResult(user);
     const rotated = await this.#repository.rotateSession(
       session.id,
       tokenHash,
-      replacement,
+      issued.session,
     );
     if (!rotated) throw new AuthFailure();
-    return result;
+    return issued.result;
   }
 
   async logout(refreshToken: string): Promise<void> {
@@ -126,10 +128,11 @@ export class AuthService {
     }
   }
 
-  async #createResult(user: AuthUser): Promise<AuthResult> {
+  async #issueResult(
+    user: AuthUser,
+  ): Promise<{ result: AuthResult; session: AuthSession }> {
     const refreshToken = createRefreshToken();
     const session = this.#sessionFor(user.id, refreshToken);
-    await this.#repository.createSession(session);
     const accessToken = await new SignJWT({
       role: user.role,
       sid: session.id,
@@ -143,10 +146,14 @@ export class AuthService {
       .setSubject(user.id)
       .setExpirationTime(`${this.#config.accessTokenTtlSeconds}s`)
       .sign(this.#key);
+
     return {
-      accessToken,
-      expiresIn: this.#config.accessTokenTtlSeconds,
-      refreshToken,
+      result: {
+        accessToken,
+        expiresIn: this.#config.accessTokenTtlSeconds,
+        refreshToken,
+      },
+      session,
     };
   }
 
