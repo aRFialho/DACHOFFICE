@@ -1,4 +1,4 @@
-export type UserRole = 'admin_master';
+export type UserRole = "admin_master";
 
 export interface AuthUser {
   id: string;
@@ -42,7 +42,7 @@ export interface AuthTokenConfig {
 }
 
 export interface AuthenticatedActor {
-  user: Pick<AuthUser, 'id' | 'name' | 'email' | 'role'>;
+  user: Pick<AuthUser, "id" | "name" | "email" | "role">;
   sessionId: string;
 }
 

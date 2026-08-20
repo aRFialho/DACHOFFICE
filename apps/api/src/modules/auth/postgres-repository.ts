@@ -1,11 +1,11 @@
-import type { Pool, PoolClient } from 'pg';
-import type { AuthRepository, AuthSession, AuthUser } from './types.js';
+import type { Pool, PoolClient } from "pg";
+import type { AuthRepository, AuthSession, AuthUser } from "./types.js";
 
 type UserRow = {
   id: string;
   name: string;
   email: string;
-  role: 'admin_master';
+  role: "admin_master";
   active: boolean;
   password_hash: string;
   session_version: number;
@@ -70,7 +70,9 @@ export class PostgresAuthRepository implements AuthRepository {
     return row ? toSession(row) : null;
   }
 
-  async findSessionByRefreshTokenHash(tokenHash: string): Promise<AuthSession | null> {
+  async findSessionByRefreshTokenHash(
+    tokenHash: string,
+  ): Promise<AuthSession | null> {
     const result = await this.pool.query<SessionRow>(
       `SELECT id, user_id, refresh_token_hash, expires_at, revoked_at
        FROM auth_session WHERE refresh_token_hash = $1`,
@@ -84,7 +86,13 @@ export class PostgresAuthRepository implements AuthRepository {
     await this.pool.query(
       `INSERT INTO auth_session (id, user_id, refresh_token_hash, expires_at, revoked_at)
        VALUES ($1, $2, $3, $4, $5)`,
-      [session.id, session.userId, session.refreshTokenHash, session.expiresAt, session.revokedAt],
+      [
+        session.id,
+        session.userId,
+        session.refreshTokenHash,
+        session.expiresAt,
+        session.revokedAt,
+      ],
     );
   }
 
@@ -95,21 +103,21 @@ export class PostgresAuthRepository implements AuthRepository {
   ): Promise<boolean> {
     const client = await this.pool.connect();
     try {
-      await client.query('BEGIN');
+      await client.query("BEGIN");
       const revoked = await client.query(
         `UPDATE auth_session SET revoked_at = now()
          WHERE id = $1 AND refresh_token_hash = $2 AND revoked_at IS NULL AND expires_at > now()`,
         [sessionId, expectedRefreshTokenHash],
       );
       if (revoked.rowCount !== 1) {
-        await client.query('ROLLBACK');
+        await client.query("ROLLBACK");
         return false;
       }
       await this.insertSession(client, replacement);
-      await client.query('COMMIT');
+      await client.query("COMMIT");
       return true;
     } catch (error) {
-      await client.query('ROLLBACK');
+      await client.query("ROLLBACK");
       throw error;
     } finally {
       client.release();
@@ -118,7 +126,7 @@ export class PostgresAuthRepository implements AuthRepository {
 
   async revokeSession(sessionId: string): Promise<void> {
     await this.pool.query(
-      'UPDATE auth_session SET revoked_at = now() WHERE id = $1 AND revoked_at IS NULL',
+      "UPDATE auth_session SET revoked_at = now() WHERE id = $1 AND revoked_at IS NULL",
       [sessionId],
     );
   }
@@ -127,7 +135,13 @@ export class PostgresAuthRepository implements AuthRepository {
     await client.query(
       `INSERT INTO auth_session (id, user_id, refresh_token_hash, expires_at, revoked_at)
        VALUES ($1, $2, $3, $4, $5)`,
-      [session.id, session.userId, session.refreshTokenHash, session.expiresAt, session.revokedAt],
+      [
+        session.id,
+        session.userId,
+        session.refreshTokenHash,
+        session.expiresAt,
+        session.revokedAt,
+      ],
     );
   }
 }

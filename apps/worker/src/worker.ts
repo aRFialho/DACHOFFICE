@@ -1,4 +1,8 @@
-export type FoundationJob = { id: string; idempotencyKey: string; message: string };
+export type FoundationJob = {
+  id: string;
+  idempotencyKey: string;
+  message: string;
+};
 
 export const createFoundationQueue = () => {
   const jobs: FoundationJob[] = [];
@@ -10,7 +14,9 @@ export const createFoundationQueue = () => {
         jobs.push(job);
       }
     },
-    async drain(handle: (job: FoundationJob) => Promise<void>): Promise<number> {
+    async drain(
+      handle: (job: FoundationJob) => Promise<void>,
+    ): Promise<number> {
       let processed = 0;
       for (const job of jobs.splice(0)) {
         await handle(job);

@@ -1,9 +1,11 @@
 # Sprint 0 — Foundations
 
 ## Goal
+
 Create the minimum reliable engineering foundation for DACHBYTE OFFICE without implementing marketplace, finance, agent intelligence, Neon production infrastructure, Render deployment, or the isometric renderer.
 
 ## Approved stack
+
 - Node.js 24 LTS
 - TypeScript strict mode
 - pnpm workspace
@@ -16,6 +18,7 @@ Create the minimum reliable engineering foundation for DACHBYTE OFFICE without i
 - Render topology documented but not provisioned in this sprint
 
 ## Repository shape
+
 ```text
 apps/
   web/
@@ -40,7 +43,9 @@ Only packages required to prove the Sprint 0 runtime are implemented now. Empty 
 ## Required vertical proof
 
 ### API
+
 `GET /health` returns:
+
 ```json
 {
   "service": "dachbyte-office-api",
@@ -49,13 +54,17 @@ Only packages required to prove the Sprint 0 runtime are implemented now. Empty 
 ```
 
 ### Worker
+
 A deterministic in-memory Sprint 0 queue contract proves that a job can be accepted, consumed and completed without coupling to the future production queue provider.
 
 ### Web
+
 A minimal React shell builds successfully and clearly identifies DACHBYTE OFFICE as a foundation placeholder, not the final Office UI.
 
 ## CI quality gate
+
 Every PR must run:
+
 1. dependency install;
 2. typecheck;
 3. tests;
@@ -64,6 +73,7 @@ Every PR must run:
 The workflow bootstrap lives on the default branch so pull-request runs are evaluated from a known CI baseline.
 
 ## Non-goals
+
 - no production Neon project changes;
 - no Render service creation;
 - no PixiJS/Tiled renderer yet;
@@ -74,7 +84,9 @@ The workflow bootstrap lives on the default branch so pull-request runs are eval
 - no external write actions.
 
 ## Acceptance
+
 Sprint 0 is accepted only when:
+
 - root workspace installs cleanly;
 - API health test passes;
 - worker queue proof test passes;

@@ -1,6 +1,7 @@
-import type { AuthRepository, AuthSession, AuthUser } from './types.js';
+import type { AuthRepository, AuthSession, AuthUser } from "./types.js";
 
-const normalizedEmail = (email: string) => email.trim().toLocaleLowerCase('en-US');
+const normalizedEmail = (email: string) =>
+  email.trim().toLocaleLowerCase("en-US");
 
 const copyUser = (user: AuthUser): AuthUser => ({ ...user });
 
@@ -23,7 +24,7 @@ export class InMemoryAuthRepository implements AuthRepository {
 
   async setUserActive(userId: string, active: boolean): Promise<void> {
     const user = this.#users.get(userId);
-    if (!user) throw new Error('User not found');
+    if (!user) throw new Error("User not found");
     this.#users.set(userId, { ...user, active });
   }
 
@@ -43,8 +44,12 @@ export class InMemoryAuthRepository implements AuthRepository {
     return session ? copySession(session) : null;
   }
 
-  async findSessionByRefreshTokenHash(tokenHash: string): Promise<AuthSession | null> {
-    const session = [...this.#sessions.values()].find((item) => item.refreshTokenHash === tokenHash);
+  async findSessionByRefreshTokenHash(
+    tokenHash: string,
+  ): Promise<AuthSession | null> {
+    const session = [...this.#sessions.values()].find(
+      (item) => item.refreshTokenHash === tokenHash,
+    );
     return session ? copySession(session) : null;
   }
 

@@ -9,5 +9,9 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "queue:smoke": "vitest run test/worker.test.ts"
   },
-  "devDependencies": { "@types/node": "25.5.0", "typescript": "7.0.2", "vitest": "4.1.10" }
+  "devDependencies": {
+    "@types/node": "25.5.0",
+    "typescript": "7.0.2",
+    "vitest": "4.1.10"
+  }
 }

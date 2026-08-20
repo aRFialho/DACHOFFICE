@@ -1,8 +1,39 @@
-:root { color: #f5f7ff; background: #111827; font-family: Inter, system-ui, sans-serif; }
-* { box-sizing: border-box; }
-body { margin: 0; min-width: 320px; }
-main { display: grid; align-content: center; gap: 1rem; min-height: 100vh; max-width: 48rem; padding: 2rem; }
-h1, p { margin: 0; }
-h1 { font-size: clamp(2.5rem, 8vw, 5rem); letter-spacing: -0.06em; }
-p { color: #cbd5e1; font-size: 1.125rem; line-height: 1.6; }
-.eyebrow { color: #67e8f9; font-size: .75rem; font-weight: 700; letter-spacing: .16em; }
+:root {
+  color: #f5f7ff;
+  background: #111827;
+  font-family: Inter, system-ui, sans-serif;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  min-width: 320px;
+}
+main {
+  display: grid;
+  align-content: center;
+  gap: 1rem;
+  min-height: 100vh;
+  max-width: 48rem;
+  padding: 2rem;
+}
+h1,
+p {
+  margin: 0;
+}
+h1 {
+  font-size: clamp(2.5rem, 8vw, 5rem);
+  letter-spacing: -0.06em;
+}
+p {
+  color: #cbd5e1;
+  font-size: 1.125rem;
+  line-height: 1.6;
+}
+.eyebrow {
+  color: #67e8f9;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+}

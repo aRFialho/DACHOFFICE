@@ -1,10 +1,12 @@
-import argon2 from 'argon2';
+import argon2 from "argon2";
 
 const minimumPasswordLength = 14;
 
 export const assertPasswordPolicy = (password: string): void => {
   if (password.length < minimumPasswordLength) {
-    throw new Error(`Password must be at least ${minimumPasswordLength} characters long`);
+    throw new Error(
+      `Password must be at least ${minimumPasswordLength} characters long`,
+    );
   }
 };
 

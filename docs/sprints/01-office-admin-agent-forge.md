@@ -16,15 +16,15 @@ Sprint 1 establishes the administrative configuration layer. PostgreSQL remains 
 
 All commands below require an active Admin Master access token in `Authorization: Bearer <token>`.
 
-| Method | Path | Result |
-| --- | --- | --- |
-| POST | `/v1/admin/offices` | Create an Office and initial settings. |
-| POST | `/v1/admin/offices/:officeId/departments` | Create a department. |
-| POST | `/v1/admin/agents` | Create a draft agent with version 1. |
-| POST | `/v1/admin/agents/:agentId/versions` | Append an immutable version. |
-| POST | `/v1/admin/agents/:agentId/lifecycle` | Apply a validated lifecycle transition. |
-| PUT | `/v1/admin/agents/:agentId/schedule` | Atomically replace its schedule. |
-| DELETE | `/v1/admin/agents/:agentId/tool-grants/:grantId` | Revoke the active grant logically. |
+| Method | Path                                             | Result                                  |
+| ------ | ------------------------------------------------ | --------------------------------------- |
+| POST   | `/v1/admin/offices`                              | Create an Office and initial settings.  |
+| POST   | `/v1/admin/offices/:officeId/departments`        | Create a department.                    |
+| POST   | `/v1/admin/agents`                               | Create a draft agent with version 1.    |
+| POST   | `/v1/admin/agents/:agentId/versions`             | Append an immutable version.            |
+| POST   | `/v1/admin/agents/:agentId/lifecycle`            | Apply a validated lifecycle transition. |
+| PUT    | `/v1/admin/agents/:agentId/schedule`             | Atomically replace its schedule.        |
+| DELETE | `/v1/admin/agents/:agentId/tool-grants/:grantId` | Revoke the active grant logically.      |
 
 ## Security and operating boundaries
 

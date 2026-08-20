@@ -1,6 +1,6 @@
-import { createHash, randomBytes, randomUUID } from 'node:crypto';
-import { jwtVerify, SignJWT } from 'jose';
-import { verifyPassword } from './password.js';
+import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { jwtVerify, SignJWT } from "jose";
+import { verifyPassword } from "./password.js";
 import type {
   AuthRepository,
   AuthResult,
@@ -8,23 +8,24 @@ import type {
   AuthTokenConfig,
   AuthenticatedActor,
   AuthUser,
-} from './types.js';
+} from "./types.js";
 
 const tokenEncoder = new TextEncoder();
 const refreshTokenBytes = 32;
 
 export class AuthFailure extends Error {
   constructor() {
-    super('Authentication failed');
+    super("Authentication failed");
   }
 }
 
 const hashRefreshToken = (token: string): string =>
-  createHash('sha256').update(token).digest('base64url');
+  createHash("sha256").update(token).digest("base64url");
 
-const createRefreshToken = (): string => randomBytes(refreshTokenBytes).toString('base64url');
+const createRefreshToken = (): string =>
+  randomBytes(refreshTokenBytes).toString("base64url");
 
-const publicUser = (user: AuthUser): AuthenticatedActor['user'] => ({
+const publicUser = (user: AuthUser): AuthenticatedActor["user"] => ({
   id: user.id,
   name: user.name,
   email: user.email,
@@ -37,8 +38,8 @@ export class AuthService {
   readonly #key: Uint8Array;
 
   constructor(repository: AuthRepository, config: AuthTokenConfig) {
-    if (Buffer.byteLength(config.accessTokenSecret, 'utf8') < 32) {
-      throw new Error('JWT_ACCESS_SECRET must contain at least 32 bytes');
+    if (Buffer.byteLength(config.accessTokenSecret, "utf8") < 32) {
+      throw new Error("JWT_ACCESS_SECRET must contain at least 32 bytes");
     }
     this.#repository = repository;
     this.#config = config;
@@ -47,7 +48,11 @@ export class AuthService {
 
   async login(email: string, password: string): Promise<AuthResult> {
     const user = await this.#repository.findUserByEmail(email);
-    if (!user || !user.active || !(await verifyPassword(user.passwordHash, password))) {
+    if (
+      !user ||
+      !user.active ||
+      !(await verifyPassword(user.passwordHash, password))
+    ) {
       throw new AuthFailure();
     }
     return this.#createResult(user);
@@ -55,7 +60,8 @@ export class AuthService {
 
   async refresh(refreshToken: string): Promise<AuthResult> {
     const tokenHash = hashRefreshToken(refreshToken);
-    const session = await this.#repository.findSessionByRefreshTokenHash(tokenHash);
+    const session =
+      await this.#repository.findSessionByRefreshTokenHash(tokenHash);
     if (!session) throw new AuthFailure();
 
     const user = await this.#repository.findUserById(session.userId);
@@ -63,7 +69,11 @@ export class AuthService {
 
     const result = await this.#createResult(user);
     const replacement = this.#sessionFor(user.id, result.refreshToken);
-    const rotated = await this.#repository.rotateSession(session.id, tokenHash, replacement);
+    const rotated = await this.#repository.rotateSession(
+      session.id,
+      tokenHash,
+      replacement,
+    );
     if (!rotated) throw new AuthFailure();
     return result;
   }
@@ -77,16 +87,23 @@ export class AuthService {
 
   async authenticate(accessToken: string): Promise<AuthenticatedActor> {
     try {
-      const { payload, protectedHeader } = await jwtVerify(accessToken, this.#key, {
-        algorithms: ['HS256'],
-        issuer: this.#config.issuer,
-        audience: this.#config.audience,
-      });
-      if (protectedHeader.alg !== 'HS256') throw new AuthFailure();
+      const { payload, protectedHeader } = await jwtVerify(
+        accessToken,
+        this.#key,
+        {
+          algorithms: ["HS256"],
+          issuer: this.#config.issuer,
+          audience: this.#config.audience,
+        },
+      );
+      if (protectedHeader.alg !== "HS256") throw new AuthFailure();
       const userId = payload.sub;
-      const sessionId = typeof payload.sid === 'string' ? payload.sid : undefined;
-      const sessionVersion = typeof payload.sv === 'number' ? payload.sv : undefined;
-      if (!userId || !sessionId || sessionVersion === undefined) throw new AuthFailure();
+      const sessionId =
+        typeof payload.sid === "string" ? payload.sid : undefined;
+      const sessionVersion =
+        typeof payload.sv === "number" ? payload.sv : undefined;
+      if (!userId || !sessionId || sessionVersion === undefined)
+        throw new AuthFailure();
 
       const [user, session] = await Promise.all([
         this.#repository.findUserById(userId),
@@ -118,9 +135,9 @@ export class AuthService {
       sid: session.id,
       sv: user.sessionVersion,
     })
-      .setProtectedHeader({ alg: 'HS256', typ: 'JWT', kid: 'access-v1' })
+      .setProtectedHeader({ alg: "HS256", typ: "JWT", kid: "access-v1" })
       .setIssuedAt()
-      .setNotBefore('0s')
+      .setNotBefore("0s")
       .setIssuer(this.#config.issuer)
       .setAudience(this.#config.audience)
       .setSubject(user.id)
@@ -138,7 +155,9 @@ export class AuthService {
       id: randomUUID(),
       userId,
       refreshTokenHash: hashRefreshToken(refreshToken),
-      expiresAt: new Date(Date.now() + this.#config.refreshTokenTtlSeconds * 1000),
+      expiresAt: new Date(
+        Date.now() + this.#config.refreshTokenTtlSeconds * 1000,
+      ),
       revokedAt: null,
     };
   }

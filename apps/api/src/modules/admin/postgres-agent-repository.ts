@@ -1,6 +1,10 @@
-import { randomUUID } from 'node:crypto';
-import type { Pool } from 'pg';
-import type { AgentRecord, AgentRepository, CreateAgentInput } from './agent-service.js';
+import { randomUUID } from "node:crypto";
+import type { Pool } from "pg";
+import type {
+  AgentRecord,
+  AgentRepository,
+  CreateAgentInput,
+} from "./agent-service.js";
 
 export class PostgresAgentRepository implements AgentRepository {
   constructor(private readonly pool: Pool) {}
@@ -10,19 +14,28 @@ export class PostgresAgentRepository implements AgentRepository {
     const versionId = randomUUID();
     const client = await this.pool.connect();
     try {
-      await client.query('BEGIN');
+      await client.query("BEGIN");
       const department = await client.query(
-        'SELECT 1 FROM department WHERE id = $1 AND office_id = $2',
+        "SELECT 1 FROM department WHERE id = $1 AND office_id = $2",
         [input.departmentId, input.officeId],
       );
-      if (department.rowCount !== 1) throw new Error('department does not belong to office');
+      if (department.rowCount !== 1)
+        throw new Error("department does not belong to office");
 
       await client.query(
         `INSERT INTO agent (
           id, office_id, department_id, name, title, primary_role, lifecycle_status,
           current_state, created_by_user_id
         ) VALUES ($1, $2, $3, $4, $5, $6, 'draft', 'idle', $7)`,
-        [agentId, input.officeId, input.departmentId, input.name, input.title, input.primaryRole, input.createdByUserId],
+        [
+          agentId,
+          input.officeId,
+          input.departmentId,
+          input.name,
+          input.title,
+          input.primaryRole,
+          input.createdByUserId,
+        ],
       );
       await client.query(
         `INSERT INTO agent_version (
@@ -43,13 +56,23 @@ export class PostgresAgentRepository implements AgentRepository {
           input.createdByUserId,
         ],
       );
-      await client.query('UPDATE agent SET active_version_id = $1 WHERE id = $2', [versionId, agentId]);
+      await client.query(
+        "UPDATE agent SET active_version_id = $1 WHERE id = $2",
+        [versionId, agentId],
+      );
 
       for (const schedule of input.schedules) {
         await client.query(
           `INSERT INTO agent_schedule (agent_id, weekday, work_start, work_end, timezone, on_call)
            VALUES ($1, $2, $3, $4, $5, $6)`,
-          [agentId, schedule.weekday, schedule.workStart, schedule.workEnd, schedule.timezone, schedule.onCall],
+          [
+            agentId,
+            schedule.weekday,
+            schedule.workStart,
+            schedule.workEnd,
+            schedule.timezone,
+            schedule.onCall,
+          ],
         );
       }
       for (const grant of input.grants) {
@@ -59,10 +82,15 @@ export class PostgresAgentRepository implements AgentRepository {
           [randomUUID(), agentId, grant.toolCode, grant.accessLevel],
         );
       }
-      await client.query('COMMIT');
-      return { id: agentId, lifecycleStatus: 'draft', versionNumber: 1, ...input };
+      await client.query("COMMIT");
+      return {
+        id: agentId,
+        lifecycleStatus: "draft",
+        versionNumber: 1,
+        ...input,
+      };
     } catch (error) {
-      await client.query('ROLLBACK');
+      await client.query("ROLLBACK");
       throw error;
     } finally {
       client.release();

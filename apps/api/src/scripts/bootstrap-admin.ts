@@ -1,6 +1,6 @@
-import { randomUUID } from 'node:crypto';
-import pg from 'pg';
-import { hashPassword } from '../modules/auth/password.js';
+import { randomUUID } from "node:crypto";
+import pg from "pg";
+import { hashPassword } from "../modules/auth/password.js";
 
 const required = (key: string): string => {
   const value = process.env[key]?.trim();
@@ -8,10 +8,10 @@ const required = (key: string): string => {
   return value;
 };
 
-const connectionString = required('OFFICE_DIRECT_DATABASE_URL');
-const email = required('ADMIN_EMAIL').toLocaleLowerCase('en-US');
-const password = required('ADMIN_PASSWORD');
-const name = process.env.ADMIN_NAME?.trim() || 'Admin Master';
+const connectionString = required("OFFICE_DIRECT_DATABASE_URL");
+const email = required("ADMIN_EMAIL").toLocaleLowerCase("en-US");
+const password = required("ADMIN_PASSWORD");
+const name = process.env.ADMIN_NAME?.trim() || "Admin Master";
 
 const client = new pg.Client({ connectionString });
 
@@ -22,10 +22,12 @@ try {
   );
   const current = existing.rows[0];
   if (current) {
-    if (current.email.toLocaleLowerCase('en-US') === email) {
-      console.log('Admin Master already exists.');
+    if (current.email.toLocaleLowerCase("en-US") === email) {
+      console.log("Admin Master already exists.");
     } else {
-      throw new Error('An Admin Master already exists; refusing to replace it.');
+      throw new Error(
+        "An Admin Master already exists; refusing to replace it.",
+      );
     }
   } else {
     await client.query(
@@ -34,7 +36,7 @@ try {
       ) VALUES ($1, $2, $3, 'admin_master', true, $4, now(), 1)`,
       [randomUUID(), name, email, await hashPassword(password)],
     );
-    console.log('Admin Master bootstrap completed.');
+    console.log("Admin Master bootstrap completed.");
   }
 } finally {
   await client.end().catch(() => undefined);
