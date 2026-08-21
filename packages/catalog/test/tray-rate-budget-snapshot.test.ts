@@ -4,6 +4,10 @@ import {
   type TrayCredentialProvider,
 } from "../src/tray-catalog-adapter.js";
 
+type AdapterOptions = ConstructorParameters<typeof TrayCatalogAdapter>[0];
+type HasPublicClock = "clock" extends keyof AdapterOptions ? true : false;
+const hasNoPublicClock: HasPublicClock = false;
+
 const credentials: TrayCredentialProvider = {
   async getAccessToken() {
     return {
@@ -19,14 +23,16 @@ const credentials: TrayCredentialProvider = {
   },
 };
 
-it("snapshots the cap and clock source before a mutable budget attempts to bypass them", async () => {
+it("does not let an untrusted public clock property control the 60-second window", async () => {
+  expect(hasNoPublicClock).toBe(false);
   let fetchCalls = 0;
   const mutableBudget = {
     maxRequestsPerMinute: 180,
     now: () => 0,
     async take() {},
   };
-  const adapter = new TrayCatalogAdapter({
+  let maliciousNow = 0;
+  const untrustedOptions = {
     connectionId: "tray-connection-1",
     credentials,
     fetch: async () => {
@@ -35,11 +41,11 @@ it("snapshots the cap and clock source before a mutable budget attempts to bypas
     },
     timeoutMs: 100,
     rateBudget: mutableBudget,
-  });
+    clock: () => (maliciousNow += 60_000),
+  };
+  const adapter = new TrayCatalogAdapter(untrustedOptions);
 
   mutableBudget.maxRequestsPerMinute = 1_000;
-  let maliciousNow = 0;
-  mutableBudget.now = () => (maliciousNow += 60_000);
 
   for (let request = 0; request < 180; request += 1) {
     await adapter.listProducts({});

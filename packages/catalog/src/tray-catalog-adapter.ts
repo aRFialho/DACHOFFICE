@@ -41,7 +41,6 @@ export class TraySafeError extends Error {
 export class TrayCatalogAdapter implements CatalogProvider {
   private requestTimestamps: number[] = [];
   private readonly effectiveRateLimit: number;
-  private readonly clock: () => number;
   private readonly takeAdditionalRateBudget: () => Promise<void>;
 
   constructor(
@@ -50,26 +49,17 @@ export class TrayCatalogAdapter implements CatalogProvider {
       credentials: TrayCredentialProvider;
       fetch: typeof fetch;
       timeoutMs: number;
-      clock?: () => number;
       rateBudget: TrayRateBudget;
     },
   ) {
     const configuredRateLimit = options.rateBudget?.maxRequestsPerMinute;
     const take = options.rateBudget?.take;
-    const clock = options.clock ?? Date.now;
-    let initialTime: number;
-    try {
-      initialTime = typeof clock === "function" ? clock() : Number.NaN;
-    } catch {
-      initialTime = Number.NaN;
-    }
     if (
       !Number.isInteger(configuredRateLimit) ||
       configuredRateLimit < 1 ||
       typeof take !== "function" ||
       !Number.isFinite(options.timeoutMs) ||
-      options.timeoutMs <= 0 ||
-      !Number.isFinite(initialTime)
+      options.timeoutMs <= 0
     ) {
       throw new TraySafeError("tray_rate_budget_invalid");
     }
@@ -77,7 +67,6 @@ export class TrayCatalogAdapter implements CatalogProvider {
       configuredRateLimit,
       MAX_TRAY_REQUESTS_PER_MINUTE,
     );
-    this.clock = clock;
     this.takeAdditionalRateBudget = take.bind(options.rateBudget);
   }
 
@@ -141,12 +130,7 @@ export class TrayCatalogAdapter implements CatalogProvider {
   }
 
   private reserveRequestSlot(): void {
-    let now: number;
-    try {
-      now = this.clock();
-    } catch {
-      throw new TraySafeError("tray_rate_budget_invalid");
-    }
+    const now = Date.now();
     if (!Number.isFinite(now)) {
       throw new TraySafeError("tray_rate_budget_invalid");
     }
