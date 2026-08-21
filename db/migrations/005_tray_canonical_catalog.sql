@@ -110,11 +110,12 @@ CREATE TABLE IF NOT EXISTS channel_listing (
   channel text NOT NULL CHECK (char_length(channel) BETWEEN 1 AND 80),
   external_listing_id text NOT NULL
     CHECK (char_length(btrim(external_listing_id)) BETWEEN 1 AND 320),
-  provider text NOT NULL,
-  external_product_id text NOT NULL,
-  external_variation_key text NOT NULL DEFAULT '',
+  source_provider text NOT NULL,
+  source_external_product_id text NOT NULL,
   external_variation_id text,
   external_sku text,
+  source_external_variation_id text,
+  source_external_variation_key text NOT NULL DEFAULT '',
   current_price_numeric numeric(19,4) NOT NULL,
   current_promo_price_numeric numeric(19,4),
   currency text NOT NULL CHECK (char_length(currency) = 3),
@@ -124,10 +125,9 @@ CREATE TABLE IF NOT EXISTS channel_listing (
   updated_at timestamptz NOT NULL DEFAULT now(),
   FOREIGN KEY (product_id, office_id)
     REFERENCES product(id, office_id) ON DELETE RESTRICT,
-  FOREIGN KEY (external_product_mapping_id, office_id, product_id, mapping_status, provider, external_product_id, external_variation_key)
+  FOREIGN KEY (external_product_mapping_id, office_id, product_id, mapping_status, source_provider, source_external_product_id, source_external_variation_key)
     REFERENCES external_product_mapping(id, office_id, product_id, status, provider, external_product_id, external_variation_key) ON DELETE RESTRICT,
-  CHECK (external_listing_id = external_product_id),
-  CHECK (external_variation_key = COALESCE(external_variation_id, ''))
+  CHECK (source_external_variation_key = COALESCE(source_external_variation_id, ''))
 );
 
 CREATE TABLE IF NOT EXISTS tray_store_connection (

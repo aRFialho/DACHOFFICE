@@ -29,7 +29,18 @@ describe("canonical catalog migration provenance", () => {
       /CREATE TABLE IF NOT EXISTS product_cost_snapshot[\s\S]*?FOREIGN KEY \(external_product_mapping_id, office_id, product_id, mapping_status, provider, external_product_id, external_variation_key\)[\s\S]*?REFERENCES external_product_mapping\(id, office_id, product_id, status, provider, external_product_id, external_variation_key\)/,
     );
     expect(migration).toMatch(
-      /CREATE TABLE IF NOT EXISTS channel_listing[\s\S]*?FOREIGN KEY \(external_product_mapping_id, office_id, product_id, mapping_status, provider, external_product_id, external_variation_key\)[\s\S]*?REFERENCES external_product_mapping\(id, office_id, product_id, status, provider, external_product_id, external_variation_key\)/,
+      /CREATE TABLE IF NOT EXISTS channel_listing[\s\S]*?FOREIGN KEY \(external_product_mapping_id, office_id, product_id, mapping_status, source_provider, source_external_product_id, source_external_variation_key\)[\s\S]*?REFERENCES external_product_mapping\(id, office_id, product_id, status, provider, external_product_id, external_variation_key\)/,
+    );
+  });
+  it("keeps channel listing IDs independent from the mapped catalog source identity", () => {
+    expect(migration).toMatch(
+      /CREATE TABLE IF NOT EXISTS channel_listing[\s\S]*?external_listing_id text NOT NULL[\s\S]*?source_provider text NOT NULL,[\s\S]*?source_external_product_id text NOT NULL,[\s\S]*?external_variation_id text,[\s\S]*?source_external_variation_id text,[\s\S]*?source_external_variation_key text NOT NULL DEFAULT ''/,
+    );
+    expect(migration).toMatch(
+      /FOREIGN KEY \(external_product_mapping_id, office_id, product_id, mapping_status, source_provider, source_external_product_id, source_external_variation_key\)[\s\S]*?REFERENCES external_product_mapping\(id, office_id, product_id, status, provider, external_product_id, external_variation_key\)/,
+    );
+    expect(migration).not.toContain(
+      "CHECK (external_listing_id = external_product_id)",
     );
   });
 });
