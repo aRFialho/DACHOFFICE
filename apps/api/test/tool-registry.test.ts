@@ -64,3 +64,26 @@ describe("ToolRegistry", () => {
     );
   });
 });
+
+it("denies safely when a registered schema rejects by throwing", () => {
+  const throwingSchema = {
+    parse: () => {
+      throw new Error("invalid input");
+    },
+  };
+  const throwingTool = defineTool({
+    ...productsGet,
+    code: "products.getThrowing",
+    inputSchema: throwingSchema,
+    outputSchema: throwingSchema,
+  });
+
+  expect(
+    new ToolRegistry([throwingTool]).validateInput("products.getThrowing", {
+      sku: "ABC-1",
+    }),
+  ).toEqual({
+    ok: false,
+    reason: "tool_input_invalid",
+  });
+});

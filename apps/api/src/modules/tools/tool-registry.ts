@@ -18,9 +18,13 @@ export class ToolRegistry {
     const tool = this.get(code);
     if (!tool) return { ok: false, reason: "tool_unregistered" };
 
-    const parsed = tool.inputSchema.parse(value);
-    return parsed.ok
-      ? { ok: true, tool, input: parsed.value }
-      : { ok: false, reason: "tool_input_invalid" };
+    try {
+      const parsed = tool.inputSchema.parse(value);
+      return parsed.ok
+        ? { ok: true, tool, input: parsed.value }
+        : { ok: false, reason: "tool_input_invalid" };
+    } catch {
+      return { ok: false, reason: "tool_input_invalid" };
+    }
   }
 }
