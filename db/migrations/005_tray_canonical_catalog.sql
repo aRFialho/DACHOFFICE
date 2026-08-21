@@ -48,6 +48,7 @@ CREATE TABLE IF NOT EXISTS external_product_mapping (
   external_product_id text NOT NULL
     CHECK (char_length(btrim(external_product_id)) BETWEEN 1 AND 320),
   external_variation_id text,
+  external_variation_key text NOT NULL DEFAULT '',
   external_sku text,
   product_id uuid,
   status text NOT NULL CHECK (status IN ('mapped', 'unresolved')),
@@ -55,6 +56,7 @@ CREATE TABLE IF NOT EXISTS external_product_mapping (
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
   UNIQUE (id, office_id, product_id, status),
+  UNIQUE (id, office_id, product_id, status, provider, external_product_id, external_variation_key),
   FOREIGN KEY (product_id, office_id)
     REFERENCES product(id, office_id) ON DELETE RESTRICT,
   CHECK (
@@ -64,12 +66,18 @@ CREATE TABLE IF NOT EXISTS external_product_mapping (
       AND product_id IS NULL
       AND resolution_reason IN ('missing_sku', 'ambiguous_sku', 'mapping_not_found')
     )
+  ),
+  CHECK (external_variation_key = COALESCE(external_variation_id, ''))
 );
 
 CREATE TABLE IF NOT EXISTS product_cost_snapshot (
   id uuid PRIMARY KEY,
   office_id uuid NOT NULL,
   product_id uuid NOT NULL,
+  provider text,
+  external_product_id text,
+  external_variation_id text,
+  external_variation_key text,
   external_product_mapping_id uuid,
   mapping_status text,
   source text NOT NULL CHECK (char_length(source) BETWEEN 1 AND 80),
@@ -81,8 +89,8 @@ CREATE TABLE IF NOT EXISTS product_cost_snapshot (
   created_at timestamptz NOT NULL DEFAULT now(),
   FOREIGN KEY (product_id, office_id)
     REFERENCES product(id, office_id) ON DELETE RESTRICT,
-  FOREIGN KEY (external_product_mapping_id, office_id, product_id, mapping_status)
-    REFERENCES external_product_mapping(id, office_id, product_id, status) ON DELETE RESTRICT,
+  FOREIGN KEY (external_product_mapping_id, office_id, product_id, mapping_status, provider, external_product_id, external_variation_key)
+    REFERENCES external_product_mapping(id, office_id, product_id, status, provider, external_product_id, external_variation_key) ON DELETE RESTRICT,
   CHECK (
     (source = 'manual' AND external_product_mapping_id IS NULL AND mapping_status IS NULL)
     OR (
@@ -90,7 +98,8 @@ CREATE TABLE IF NOT EXISTS product_cost_snapshot (
       AND external_product_mapping_id IS NOT NULL
       AND mapping_status = 'mapped'
     )
-  )
+  ),
+  CHECK ((source = 'manual' AND provider IS NULL AND external_product_id IS NULL AND external_variation_id IS NULL AND external_variation_key IS NULL) OR (source <> 'manual' AND provider IS NOT NULL AND external_product_id IS NOT NULL AND external_variation_key = COALESCE(external_variation_id, '')))
 );
 CREATE TABLE IF NOT EXISTS channel_listing (
   id uuid PRIMARY KEY,
@@ -101,6 +110,9 @@ CREATE TABLE IF NOT EXISTS channel_listing (
   channel text NOT NULL CHECK (char_length(channel) BETWEEN 1 AND 80),
   external_listing_id text NOT NULL
     CHECK (char_length(btrim(external_listing_id)) BETWEEN 1 AND 320),
+  provider text NOT NULL,
+  external_product_id text NOT NULL,
+  external_variation_key text NOT NULL DEFAULT '',
   external_variation_id text,
   external_sku text,
   current_price_numeric numeric(19,4) NOT NULL,
@@ -112,8 +124,10 @@ CREATE TABLE IF NOT EXISTS channel_listing (
   updated_at timestamptz NOT NULL DEFAULT now(),
   FOREIGN KEY (product_id, office_id)
     REFERENCES product(id, office_id) ON DELETE RESTRICT,
-  FOREIGN KEY (external_product_mapping_id, office_id, product_id, mapping_status)
-    REFERENCES external_product_mapping(id, office_id, product_id, status) ON DELETE RESTRICT
+  FOREIGN KEY (external_product_mapping_id, office_id, product_id, mapping_status, provider, external_product_id, external_variation_key)
+    REFERENCES external_product_mapping(id, office_id, product_id, status, provider, external_product_id, external_variation_key) ON DELETE RESTRICT,
+  CHECK (external_listing_id = external_product_id),
+  CHECK (external_variation_key = COALESCE(external_variation_id, ''))
 );
 
 CREATE TABLE IF NOT EXISTS tray_store_connection (
