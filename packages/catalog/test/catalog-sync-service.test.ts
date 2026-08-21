@@ -93,6 +93,15 @@ class InMemoryCatalogRepository implements CatalogRepository {
     const key = `${input.provider}:${input.item.externalProductId}:${input.item.externalVariationId ?? ""}`;
     let mapping = this.mappings.get(key);
 
+    if (mapping?.status === "unresolved" && input.item.externalSku) {
+      const matches = this.localProducts.filter(
+        (product) => product.sku === input.item.externalSku,
+      );
+      if (matches.length === 1) {
+        mapping = { status: "mapped", productId: matches[0]!.productId };
+        this.mappings.set(key, mapping);
+      }
+    }
     if (!mapping) {
       if (!input.item.externalSku) {
         mapping = { status: "unresolved", reason: "missing_sku" };
@@ -296,6 +305,73 @@ describe("CatalogSyncService", () => {
       { status: "unresolved", reason: "missing_sku" },
     ]);
     expect(repository.listings).toHaveLength(1);
+  });
+  it("keeps a malformed variation unresolved by its own identity and resolves it after a corrected replay", async () => {
+    const repository = new InMemoryCatalogRepository();
+    repository.localProducts.push(
+      { sku: "SKU-017", productId: "canonical-product-17" },
+      { sku: "SKU-018", productId: "canonical-product-18" },
+    );
+    let malformedVariation = true;
+    const provider: CatalogProvider = {
+      async listProducts() {
+        return {
+          products: [
+            {
+              ...mappedProduct,
+              variations: [
+                {
+                  externalVariationId: "tray-variation-17",
+                  reference: "SKU-017",
+                  price: malformedVariation ? "not-a-decimal" : "19.90",
+                  costPrice: "10.0000",
+                  stock: 1,
+                  status: "active",
+                },
+              ],
+            },
+            {
+              ...mappedProduct,
+              externalProductId: "tray-product-18",
+              reference: "SKU-018",
+            },
+          ],
+        };
+      },
+      async getProduct() {
+        throw new Error("not used");
+      },
+      async listVariations() {
+        throw new Error("not used");
+      },
+    };
+    const service = new CatalogSyncService({ provider, repository });
+
+    await expect(service.run("run-1")).resolves.toMatchObject({
+      status: "completed",
+    });
+
+    expect([...repository.mappings.values()]).toEqual([
+      { status: "mapped", productId: "canonical-product-17" },
+      { status: "unresolved", reason: "mapping_not_found" },
+      { status: "mapped", productId: "canonical-product-18" },
+    ]);
+    expect(repository.listings).toHaveLength(2);
+    expect(repository.snapshots).toHaveLength(2);
+
+    malformedVariation = false;
+    await repository.startRun({ ...createRun(), id: "run-2" });
+    await expect(service.run("run-2")).resolves.toMatchObject({
+      status: "completed",
+    });
+
+    expect([...repository.mappings.values()]).toEqual([
+      { status: "mapped", productId: "canonical-product-17" },
+      { status: "mapped", productId: "canonical-product-17" },
+      { status: "mapped", productId: "canonical-product-18" },
+    ]);
+    expect(repository.listings).toHaveLength(3);
+    expect(repository.snapshots).toHaveLength(3);
   });
   it("resumes from its committed checkpoint on a later page", async () => {
     const repository = new InMemoryCatalogRepository(createRun("page-2"));

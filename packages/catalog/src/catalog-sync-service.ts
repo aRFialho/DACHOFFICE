@@ -96,77 +96,80 @@ export class CatalogSyncService {
     run: CatalogRun,
     product: ProviderProduct,
   ): Promise<MappingResolution[]> {
-    try {
-      return await this.persistProduct(run, product, run.observedAt);
-    } catch (error) {
-      if (!(error instanceof CatalogNormalizationError)) throw error;
-      if (
-        typeof product.externalProductId !== "string" ||
-        product.externalProductId.trim() === ""
-      ) {
-        return [{ status: "unresolved", reason: "mapping_not_found" }];
-      }
-      return [
-        await this.options.repository.persistUnresolved({
+    const observedAt = run.observedAt;
+    const parent = await this.persistCandidateSafely(
+      run,
+      product.externalProductId,
+      undefined,
+      () => {
+        const normalized = normalizeProviderProduct(product, observedAt);
+        return isNormalizedCatalogItem(normalized)
+          ? normalized
+          : normalizeProviderProductForPersistence(product, observedAt);
+      },
+    );
+    const variations = await Promise.all(
+      product.variations.map((variation) =>
+        this.persistCandidateSafely(
           run,
-          provider: run.provider,
-          externalProductId: product.externalProductId,
-          reason: "mapping_not_found",
-        }),
-      ];
-    }
-  }
-
-  private async persistProduct(
-    run: CatalogRun,
-    product: ProviderProduct,
-    observedAt: Date,
-  ): Promise<MappingResolution[]> {
-    let candidates: NormalizedCatalogItem[];
-    try {
-      candidates = [];
-      const normalizedProduct = normalizeProviderProduct(product, observedAt);
-      candidates.push(
-        isNormalizedCatalogItem(normalizedProduct)
-          ? normalizedProduct
-          : normalizeProviderProductForPersistence(product, observedAt),
-      );
-      const normalizedVariations = normalizeProviderVariations(
-        product,
-        observedAt,
-      );
-      const persistedVariations = normalizeProviderVariationsForPersistence(
-        product,
-        observedAt,
-      );
-      for (const [index, variation] of normalizedVariations.entries()) {
-        candidates.push(
-          isNormalizedCatalogItem(variation)
-            ? variation
-            : persistedVariations[index]!,
-        );
-      }
-    } catch {
-      throw new CatalogNormalizationError();
-    }
-    return Promise.all(
-      candidates.map((item) =>
-        this.options.repository.persistItem({
-          run,
-          provider: run.provider,
-          item,
-        }),
+          product.externalProductId,
+          variation.externalVariationId,
+          () => {
+            const productWithOneVariation = {
+              ...product,
+              variations: [variation],
+            };
+            const normalized = normalizeProviderVariations(
+              productWithOneVariation,
+              observedAt,
+            )[0]!;
+            return isNormalizedCatalogItem(normalized)
+              ? normalized
+              : normalizeProviderVariationsForPersistence(
+                  productWithOneVariation,
+                  observedAt,
+                )[0]!;
+          },
+        ),
       ),
     );
+    return [parent, ...variations];
+  }
+
+  private async persistCandidateSafely(
+    run: CatalogRun,
+    externalProductId: string,
+    externalVariationId: string | undefined,
+    normalize: () => NormalizedCatalogItem,
+  ): Promise<MappingResolution> {
+    let item: NormalizedCatalogItem;
+    try {
+      item = normalize();
+    } catch {
+      if (
+        typeof externalProductId !== "string" ||
+        externalProductId.trim() === ""
+      ) {
+        return { status: "unresolved", reason: "mapping_not_found" };
+      }
+      return this.options.repository.persistUnresolved({
+        run,
+        provider: run.provider,
+        externalProductId,
+        ...(typeof externalVariationId === "string" &&
+        externalVariationId.trim() !== ""
+          ? { externalVariationId }
+          : {}),
+        reason: "mapping_not_found",
+      });
+    }
+    return this.options.repository.persistItem({
+      run,
+      provider: run.provider,
+      item,
+    });
   }
 }
-
-class CatalogNormalizationError extends Error {
-  constructor() {
-    super("catalog_normalization_invalid");
-  }
-}
-
 function isNormalizedCatalogItem(
   value: NormalizedCatalogItem | MappingResolution,
 ): value is NormalizedCatalogItem {

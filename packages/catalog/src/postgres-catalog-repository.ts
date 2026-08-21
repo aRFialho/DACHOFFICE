@@ -202,9 +202,34 @@ export class PostgresCatalogRepository implements CatalogRepository {
           variationKey,
         ],
       );
-      const mapping =
+      let mapping =
         existing.rows[0] ??
         (await this.createMapping(client, input, variationKey));
+      if (
+        mapping.status === "unresolved" &&
+        input.item.externalSku !== undefined
+      ) {
+        const resolution = await resolveExactSku(
+          client,
+          input.run.officeId,
+          input.item.externalSku,
+        );
+        if (resolution.status === "mapped") {
+          await client.query(
+            `UPDATE external_product_mapping
+             SET product_id = $2, status = 'mapped', resolution_reason = NULL,
+                 external_sku = $3, updated_at = now()
+             WHERE id = $1 AND status = 'unresolved'`,
+            [mapping.id, resolution.productId, input.item.externalSku],
+          );
+          mapping = {
+            id: mapping.id,
+            status: "mapped",
+            product_id: resolution.productId,
+            resolution_reason: null,
+          };
+        }
+      }
       if (mapping.status === "unresolved") {
         return {
           status: "unresolved",
