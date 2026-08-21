@@ -17,7 +17,6 @@ const MAX_TRAY_REQUESTS_PER_MINUTE = 180;
 export interface TrayRateBudget {
   readonly maxRequestsPerMinute: number;
   take(): Promise<void>;
-  now?: () => number;
 }
 
 export class TraySafeError extends Error {
@@ -41,6 +40,9 @@ export class TraySafeError extends Error {
 
 export class TrayCatalogAdapter implements CatalogProvider {
   private requestTimestamps: number[] = [];
+  private readonly effectiveRateLimit: number;
+  private readonly clock: () => number;
+  private readonly takeAdditionalRateBudget: () => Promise<void>;
 
   constructor(
     private readonly options: {
@@ -48,18 +50,35 @@ export class TrayCatalogAdapter implements CatalogProvider {
       credentials: TrayCredentialProvider;
       fetch: typeof fetch;
       timeoutMs: number;
+      clock?: () => number;
       rateBudget: TrayRateBudget;
     },
   ) {
+    const configuredRateLimit = options.rateBudget?.maxRequestsPerMinute;
+    const take = options.rateBudget?.take;
+    const clock = options.clock ?? Date.now;
+    let initialTime: number;
+    try {
+      initialTime = typeof clock === "function" ? clock() : Number.NaN;
+    } catch {
+      initialTime = Number.NaN;
+    }
     if (
-      !Number.isInteger(options.rateBudget.maxRequestsPerMinute) ||
-      options.rateBudget.maxRequestsPerMinute < 1 ||
-      options.rateBudget.maxRequestsPerMinute > MAX_TRAY_REQUESTS_PER_MINUTE ||
+      !Number.isInteger(configuredRateLimit) ||
+      configuredRateLimit < 1 ||
+      typeof take !== "function" ||
       !Number.isFinite(options.timeoutMs) ||
-      options.timeoutMs <= 0
+      options.timeoutMs <= 0 ||
+      !Number.isFinite(initialTime)
     ) {
       throw new TraySafeError("tray_rate_budget_invalid");
     }
+    this.effectiveRateLimit = Math.min(
+      configuredRateLimit,
+      MAX_TRAY_REQUESTS_PER_MINUTE,
+    );
+    this.clock = clock;
+    this.takeAdditionalRateBudget = take.bind(options.rateBudget);
   }
 
   async listProducts(input: { cursor?: string }): Promise<CatalogPage> {
@@ -122,7 +141,12 @@ export class TrayCatalogAdapter implements CatalogProvider {
   }
 
   private reserveRequestSlot(): void {
-    const now = this.options.rateBudget.now?.() ?? Date.now();
+    let now: number;
+    try {
+      now = this.clock();
+    } catch {
+      throw new TraySafeError("tray_rate_budget_invalid");
+    }
     if (!Number.isFinite(now)) {
       throw new TraySafeError("tray_rate_budget_invalid");
     }
@@ -132,7 +156,7 @@ export class TrayCatalogAdapter implements CatalogProvider {
     );
     if (
       this.requestTimestamps.length >=
-      this.options.rateBudget.maxRequestsPerMinute
+      this.effectiveRateLimit
     ) {
       throw new TraySafeError("tray_rate_limited", true);
     }
@@ -146,7 +170,7 @@ export class TrayCatalogAdapter implements CatalogProvider {
   ): Promise<Response> {
     this.reserveRequestSlot();
     try {
-      await this.options.rateBudget.take();
+      await this.takeAdditionalRateBudget();
     } catch {
       throw new TraySafeError("tray_rate_limited", true);
     }

@@ -179,7 +179,7 @@ describe("TrayCatalogAdapter", () => {
     });
   });
 
-  it("rejects a budget above the documented 180 requests per minute cap", () => {
+  it("clamps a configured budget above 180 requests per minute", () => {
     expect(
       () =>
         new TrayCatalogAdapter({
@@ -189,6 +189,6 @@ describe("TrayCatalogAdapter", () => {
           timeoutMs: 100,
           rateBudget: { maxRequestsPerMinute: 181, async take() {} },
         }),
-    ).toThrow("tray_rate_budget_invalid");
+    ).not.toThrow();
   });
 });
