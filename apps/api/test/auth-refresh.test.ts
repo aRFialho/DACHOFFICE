@@ -118,7 +118,9 @@ describe("AuthService refresh rotation", () => {
 
     const refreshed = await service.refresh(login.refreshToken);
     expect(repository.sessions.size).toBe(2);
-    await expect(service.authenticate(refreshed.accessToken)).resolves.toMatchObject({
+    await expect(
+      service.authenticate(refreshed.accessToken),
+    ).resolves.toMatchObject({
       user: { email: "admin@example.com" },
     });
 
