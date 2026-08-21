@@ -37,6 +37,13 @@ export interface CatalogRepository {
   persistItem(
     input: PersistCatalogItemInput,
   ): Promise<PersistCatalogItemResult>;
+  persistUnresolved(input: {
+    run: CatalogRun;
+    provider: string;
+    externalProductId: string;
+    externalVariationId?: string;
+    reason: "missing_sku" | "ambiguous_sku" | "mapping_not_found";
+  }): Promise<Extract<PersistCatalogItemResult, { status: "unresolved" }>>;
   completeRun(runId: string): Promise<void>;
   failRun(input: {
     runId: string;
@@ -175,6 +182,13 @@ export class PostgresCatalogRepository implements CatalogRepository {
   ): Promise<PersistCatalogItemResult> {
     return this.transaction(async (client) => {
       const variationKey = input.item.externalVariationId ?? "";
+      await lockExternalIdentity(
+        client,
+        input.run.officeId,
+        input.provider,
+        input.item.externalProductId,
+        variationKey,
+      );
       const existing = await client.query<MappingRow>(
         `SELECT id, status, product_id, resolution_reason
          FROM external_product_mapping
@@ -263,6 +277,56 @@ export class PostgresCatalogRepository implements CatalogRepository {
     });
   }
 
+  async persistUnresolved(input: {
+    run: CatalogRun;
+    provider: string;
+    externalProductId: string;
+    externalVariationId?: string;
+    reason: "missing_sku" | "ambiguous_sku" | "mapping_not_found";
+  }): Promise<Extract<PersistCatalogItemResult, { status: "unresolved" }>> {
+    return this.transaction(async (client) => {
+      const variationKey = input.externalVariationId ?? "";
+      await lockExternalIdentity(
+        client,
+        input.run.officeId,
+        input.provider,
+        input.externalProductId,
+        variationKey,
+      );
+      const existing = await client.query<MappingRow>(
+        `SELECT id, status, product_id, resolution_reason
+         FROM external_product_mapping
+         WHERE office_id = $1 AND provider = $2 AND external_product_id = $3
+           AND external_variation_key = $4
+         FOR UPDATE`,
+        [
+          input.run.officeId,
+          input.provider,
+          input.externalProductId,
+          variationKey,
+        ],
+      );
+      if (existing.rows[0]) {
+        return { status: "unresolved", reason: input.reason };
+      }
+      await client.query(
+        `INSERT INTO external_product_mapping
+          (id, office_id, provider, external_product_id, external_variation_id,
+           external_variation_key, external_sku, product_id, status, resolution_reason)
+         VALUES ($1, $2, $3, $4, $5, $6, NULL, NULL, 'unresolved', $7)`,
+        [
+          randomUUID(),
+          input.run.officeId,
+          input.provider,
+          input.externalProductId,
+          input.externalVariationId ?? null,
+          variationKey,
+          input.reason,
+        ],
+      );
+      return { status: "unresolved", reason: input.reason };
+    });
+  }
   async completeRun(runId: string): Promise<void> {
     await this.transaction(async (client) => {
       await client.query(
@@ -351,6 +415,17 @@ export class PostgresCatalogRepository implements CatalogRepository {
   }
 }
 
+async function lockExternalIdentity(
+  client: CatalogSqlClient,
+  officeId: string,
+  provider: string,
+  externalProductId: string,
+  variationKey: string,
+): Promise<void> {
+  await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [
+    `${officeId}:${provider}:${externalProductId}:${variationKey}`,
+  ]);
+}
 async function resolveExactSku(
   client: CatalogSqlClient,
   officeId: string,

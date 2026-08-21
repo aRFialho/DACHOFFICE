@@ -123,6 +123,19 @@ class InMemoryCatalogRepository implements CatalogRepository {
     return { status: "mapped", productId: mapping.productId };
   }
 
+  async persistUnresolved(input: {
+    run: CatalogRun;
+    provider: string;
+    externalProductId: string;
+    externalVariationId?: string;
+    reason: "missing_sku" | "ambiguous_sku" | "mapping_not_found";
+  }): Promise<Extract<PersistCatalogItemResult, { status: "unresolved" }>> {
+    const key = `${input.provider}:${input.externalProductId}:${input.externalVariationId ?? ""}`;
+    if (!this.mappings.has(key)) {
+      this.mappings.set(key, { status: "unresolved", reason: input.reason });
+    }
+    return { status: "unresolved", reason: input.reason };
+  }
   async completeRun(runId: string): Promise<void> {
     if (!this.runs.has(runId)) throw new Error("missing run");
   }
@@ -214,6 +227,41 @@ describe("CatalogSyncService", () => {
     expect(repository.listings).toHaveLength(0);
   });
 
+  it("persists a safe unresolved outcome for one malformed item and continues the page", async () => {
+    const repository = new InMemoryCatalogRepository();
+    repository.localProducts.push({
+      sku: "SKU-018",
+      productId: "canonical-product-18",
+    });
+    const provider = providerFromPages({
+      first: {
+        products: [
+          {
+            ...mappedProduct,
+            externalProductId: "tray-product-invalid",
+            price: "not-a-decimal",
+          },
+          {
+            ...mappedProduct,
+            externalProductId: "tray-product-18",
+            reference: "SKU-018",
+          },
+        ],
+      },
+    });
+    const service = new CatalogSyncService({ provider, repository });
+
+    await expect(service.run("run-1")).resolves.toMatchObject({
+      status: "completed",
+    });
+    expect([...repository.mappings.values()]).toEqual([
+      { status: "unresolved", reason: "mapping_not_found" },
+      { status: "mapped", productId: "canonical-product-18" },
+    ]);
+    expect(repository.listings).toHaveLength(1);
+    expect(repository.snapshots).toHaveLength(1);
+    expect(repository.failureCodes).toEqual([]);
+  });
   it("persists an unresolved variation reference without emitting variation facts", async () => {
     const repository = new InMemoryCatalogRepository();
     repository.localProducts.push({
