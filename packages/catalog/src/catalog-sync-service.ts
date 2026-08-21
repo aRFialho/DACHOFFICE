@@ -27,7 +27,7 @@ export type SyncSummary = {
 export class CatalogSyncService {
   constructor(
     private readonly options: {
-      provider: CatalogProvider;
+      provider: CatalogProvider | ((run: CatalogRun) => CatalogProvider);
       repository: CatalogRepository;
     },
   ) {}
@@ -37,9 +37,12 @@ export class CatalogSyncService {
     if (!run) return summary(runId, "not_claimed", undefined);
 
     let state = run;
+    const provider = typeof this.options.provider === 'function'
+      ? this.options.provider(run)
+      : this.options.provider;
     try {
       for (;;) {
-        const page = await this.options.provider.listProducts(
+        const page = await provider.listProducts(
           state.checkpointCursor === undefined
             ? {}
             : { cursor: state.checkpointCursor },
