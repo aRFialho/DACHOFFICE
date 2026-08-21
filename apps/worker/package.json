@@ -16,6 +16,7 @@
     "vitest": "4.1.10"
   },
   "dependencies": {
+    "@dachbyte-office/catalog": "workspace:*",
     "pg": "8.23.0"
   }
 }
