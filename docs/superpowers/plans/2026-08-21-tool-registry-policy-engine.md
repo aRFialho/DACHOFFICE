@@ -25,28 +25,30 @@
 
 ## File Structure
 
-| File | Responsibility |
-| --- | --- |
-| `apps/api/src/modules/tools/tool-contracts.ts` | Action classes, typed runtime schema contract, tool definition builder, grant levels, and decision/reason types. |
-| `apps/api/src/modules/tools/tool-registry.ts` | Immutable semantic tool lookup and input validation; rejects unknown tools and duplicate codes. |
-| `apps/api/src/modules/policy/policy-engine.ts` | Pure deterministic authorization evaluation from a tool definition and trusted facts. |
+| File                                                        | Responsibility                                                                                                            |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `apps/api/src/modules/tools/tool-contracts.ts`              | Action classes, typed runtime schema contract, tool definition builder, grant levels, and decision/reason types.          |
+| `apps/api/src/modules/tools/tool-registry.ts`               | Immutable semantic tool lookup and input validation; rejects unknown tools and duplicate codes.                           |
+| `apps/api/src/modules/policy/policy-engine.ts`              | Pure deterministic authorization evaluation from a tool definition and trusted facts.                                     |
 | `apps/api/src/modules/policy/tool-authorization-service.ts` | Composes registry lookup/input validation with the pure evaluator; no HTTP, logging, database, or integration dependency. |
-| `apps/api/test/tool-registry.test.ts` | Registry and schema-validation behavior. |
-| `apps/api/test/policy-engine.test.ts` | Trust/action-class/grant/authority deterministic policy matrix. |
-| `apps/api/test/tool-authorization-service.test.ts` | In-process proof that unknown or malformed calls cannot be allowed. |
-| `docs/sprints/03-tool-registry-policy-engine.md` | Delivered scope, security boundary, decision semantics, and validation commands. |
-| `README.md` | Status update listing delivered Sprints 0–3. |
+| `apps/api/test/tool-registry.test.ts`                       | Registry and schema-validation behavior.                                                                                  |
+| `apps/api/test/policy-engine.test.ts`                       | Trust/action-class/grant/authority deterministic policy matrix.                                                           |
+| `apps/api/test/tool-authorization-service.test.ts`          | In-process proof that unknown or malformed calls cannot be allowed.                                                       |
+| `docs/sprints/03-tool-registry-policy-engine.md`            | Delivered scope, security boundary, decision semantics, and validation commands.                                          |
+| `README.md`                                                 | Status update listing delivered Sprints 0–3.                                                                              |
 
 No migration, API route, Fastify registration, database repository, worker consumer, or dependency change is included. A future adapter/Action Executor loads trusted PostgreSQL state and invokes `ToolAuthorizationService` for every tool attempt.
 
 ### Task 1: Typed tool contracts and semantic registry
 
 **Files:**
+
 - Create: `apps/api/src/modules/tools/tool-contracts.ts`
 - Create: `apps/api/src/modules/tools/tool-registry.ts`
 - Test: `apps/api/test/tool-registry.test.ts`
 
 **Interfaces:**
+
 - Produce `ToolActionClass = "READ" | "PREPARE" | "WRITE" | "DESTRUCTIVE" | "SENSITIVE"` and `ToolGrantLevel = "read" | "write"`.
 - Produce `RuntimeSchema<T>` with `parse(value: unknown): { ok: true; value: T } | { ok: false }`.
 - Produce `defineTool<TInput, TOutput>(definition)` and a definition containing `code`, `integration`, `description`, `inputSchema`, `outputSchema`, `actionClass`, `idempotency`, `retryPolicy`, `requiredGrant`, and `rateLimit`.
@@ -62,10 +64,12 @@ No migration, API route, Fastify registration, database repository, worker consu
 ### Task 2: Deterministic policy engine
 
 **Files:**
+
 - Create: `apps/api/src/modules/policy/policy-engine.ts`
 - Test: `apps/api/test/policy-engine.test.ts`
 
 **Interfaces:**
+
 - Consume `RegisteredTool`, `ToolGrantLevel`, and `ToolActionClass` from Task 1 and `AgentLifecycleStatus` from `admin/write-gate.ts`.
 - Produce `evaluateToolPolicy(input: PolicyEvaluationInput): ToolAuthorizationDecision`.
 - `PolicyEvaluationInput` contains the registered `tool`, `hasTaskAuthority`, `lifecycleStatus`, `grants`, `activeAgentVersionId`, `requestedAgentVersionId`, `officeTrustLevel`, `agentTrustCeiling`, `policyConditionsSatisfied`, and `actionLimitsSatisfied`.
@@ -81,10 +85,12 @@ No migration, API route, Fastify registration, database repository, worker consu
 ### Task 3: Registry-to-policy authorization boundary
 
 **Files:**
+
 - Create: `apps/api/src/modules/policy/tool-authorization-service.ts`
 - Test: `apps/api/test/tool-authorization-service.test.ts`
 
 **Interfaces:**
+
 - Consume `ToolRegistry` from Task 1 and `evaluateToolPolicy` from Task 2.
 - Produce `ToolAuthorizationService.authorize(input: ToolAuthorizationRequest): ToolAuthorizationDecision`.
 - `ToolAuthorizationRequest` contains `toolCode`, untrusted `input`, and a `PolicyEvaluationContext` that omits the tool definition.
@@ -99,10 +105,12 @@ No migration, API route, Fastify registration, database repository, worker consu
 ### Task 4: Documentation and full verification
 
 **Files:**
+
 - Create: `docs/sprints/03-tool-registry-policy-engine.md`
 - Modify: `README.md`
 
 **Interfaces:**
+
 - Document the three policy outcomes, action-class table, grant source, trusted authorization context, and absence of action execution.
 - Document the future seam `ToolAuthorizationService.authorize`.
 
