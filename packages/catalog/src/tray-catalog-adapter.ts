@@ -17,6 +17,7 @@ const MAX_TRAY_REQUESTS_PER_MINUTE = 180;
 export interface TrayRateBudget {
   readonly maxRequestsPerMinute: number;
   take(): Promise<void>;
+  now?: () => number;
 }
 
 export class TraySafeError extends Error {
@@ -39,6 +40,8 @@ export class TraySafeError extends Error {
 }
 
 export class TrayCatalogAdapter implements CatalogProvider {
+  private requestTimestamps: number[] = [];
+
   constructor(
     private readonly options: {
       connectionId: string;
@@ -118,11 +121,30 @@ export class TrayCatalogAdapter implements CatalogProvider {
     }
   }
 
+  private reserveRequestSlot(): void {
+    const now = this.options.rateBudget.now?.() ?? Date.now();
+    if (!Number.isFinite(now)) {
+      throw new TraySafeError("tray_rate_budget_invalid");
+    }
+    const windowStart = now - 60_000;
+    this.requestTimestamps = this.requestTimestamps.filter(
+      (timestamp) => timestamp > windowStart,
+    );
+    if (
+      this.requestTimestamps.length >=
+      this.options.rateBudget.maxRequestsPerMinute
+    ) {
+      throw new TraySafeError("tray_rate_limited", true);
+    }
+    this.requestTimestamps.push(now);
+  }
+
   private async fetchGet(
     credentials: { apiAddress: string; accessToken: string },
     path: string,
     cursor?: string,
   ): Promise<Response> {
+    this.reserveRequestSlot();
     try {
       await this.options.rateBudget.take();
     } catch {
