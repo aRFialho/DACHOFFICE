@@ -13,6 +13,10 @@ import { registerOfficeRoutes } from "./modules/admin/office-routes.js";
 import type { OfficeService } from "./modules/admin/office-service.js";
 import { registerTaskRoutes } from "./modules/tasks/task-routes.js";
 import type { TaskService } from "./modules/tasks/task-service.js";
+import {
+  registerCatalogRoutes,
+  type CatalogSyncRequestService,
+} from "./modules/catalog/catalog-routes.js";
 
 export interface BuildServerOptions {
   authService?: AuthService;
@@ -21,6 +25,7 @@ export interface BuildServerOptions {
   agentLifecycleService?: AgentLifecycleService;
   officeService?: OfficeService;
   taskService?: TaskService;
+  catalogSyncRequestService?: CatalogSyncRequestService;
 }
 
 export const buildServer = (options: BuildServerOptions = {}) => {
@@ -58,6 +63,12 @@ export const buildServer = (options: BuildServerOptions = {}) => {
     registerTaskRoutes(server, {
       authService: options.authService,
       taskService: options.taskService,
+    });
+  }
+  if (options.authService && options.catalogSyncRequestService) {
+    registerCatalogRoutes(server, {
+      authService: options.authService,
+      catalogSyncRequestService: options.catalogSyncRequestService,
     });
   }
   return server;
