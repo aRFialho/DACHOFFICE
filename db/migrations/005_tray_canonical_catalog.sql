@@ -40,20 +40,6 @@ CREATE TABLE IF NOT EXISTS product (
     REFERENCES supplier(id, office_id) ON DELETE SET NULL (supplier_id)
 );
 
-CREATE TABLE IF NOT EXISTS product_cost_snapshot (
-  id uuid PRIMARY KEY,
-  office_id uuid NOT NULL,
-  product_id uuid NOT NULL,
-  source text NOT NULL CHECK (char_length(source) BETWEEN 1 AND 80),
-  cost_numeric numeric(19,4) NOT NULL,
-  currency text NOT NULL CHECK (char_length(currency) = 3),
-  valid_at timestamptz NOT NULL,
-  observed_at timestamptz NOT NULL,
-  source_reference text,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  FOREIGN KEY (product_id, office_id)
-    REFERENCES product(id, office_id) ON DELETE RESTRICT
-);
 
 CREATE TABLE IF NOT EXISTS external_product_mapping (
   id uuid PRIMARY KEY,
@@ -68,6 +54,7 @@ CREATE TABLE IF NOT EXISTS external_product_mapping (
   resolution_reason text,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (id, office_id, product_id, status),
   FOREIGN KEY (product_id, office_id)
     REFERENCES product(id, office_id) ON DELETE RESTRICT,
   CHECK (
@@ -79,10 +66,38 @@ CREATE TABLE IF NOT EXISTS external_product_mapping (
     )
 );
 
+CREATE TABLE IF NOT EXISTS product_cost_snapshot (
+  id uuid PRIMARY KEY,
+  office_id uuid NOT NULL,
+  product_id uuid NOT NULL,
+  external_product_mapping_id uuid,
+  mapping_status text,
+  source text NOT NULL CHECK (char_length(source) BETWEEN 1 AND 80),
+  cost_numeric numeric(19,4) NOT NULL,
+  currency text NOT NULL CHECK (char_length(currency) = 3),
+  valid_at timestamptz NOT NULL,
+  observed_at timestamptz NOT NULL,
+  source_reference text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  FOREIGN KEY (product_id, office_id)
+    REFERENCES product(id, office_id) ON DELETE RESTRICT,
+  FOREIGN KEY (external_product_mapping_id, office_id, product_id, mapping_status)
+    REFERENCES external_product_mapping(id, office_id, product_id, status) ON DELETE RESTRICT,
+  CHECK (
+    (source = 'manual' AND external_product_mapping_id IS NULL AND mapping_status IS NULL)
+    OR (
+      source <> 'manual'
+      AND external_product_mapping_id IS NOT NULL
+      AND mapping_status = 'mapped'
+    )
+  )
+);
 CREATE TABLE IF NOT EXISTS channel_listing (
   id uuid PRIMARY KEY,
   office_id uuid NOT NULL,
   product_id uuid NOT NULL,
+  external_product_mapping_id uuid NOT NULL,
+  mapping_status text NOT NULL DEFAULT 'mapped' CHECK (mapping_status = 'mapped'),
   channel text NOT NULL CHECK (char_length(channel) BETWEEN 1 AND 80),
   external_listing_id text NOT NULL
     CHECK (char_length(btrim(external_listing_id)) BETWEEN 1 AND 320),
@@ -96,7 +111,9 @@ CREATE TABLE IF NOT EXISTS channel_listing (
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
   FOREIGN KEY (product_id, office_id)
-    REFERENCES product(id, office_id) ON DELETE RESTRICT
+    REFERENCES product(id, office_id) ON DELETE RESTRICT,
+  FOREIGN KEY (external_product_mapping_id, office_id, product_id, mapping_status)
+    REFERENCES external_product_mapping(id, office_id, product_id, status) ON DELETE RESTRICT
 );
 
 CREATE TABLE IF NOT EXISTS tray_store_connection (
