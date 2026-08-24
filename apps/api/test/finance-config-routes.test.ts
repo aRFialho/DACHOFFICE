@@ -124,4 +124,51 @@ describe("finance configuration route", () => {
     expect(service.creates).toEqual([]);
     await server.close();
   });
+
+  it("rejects duplicate configured channel fee rules before invoking persistence", async () => {
+    const service = new RecordingFinanceService("created");
+    const server = buildServer({
+      authService: createAuthService({ repository, tokenConfig }),
+      authTokenConfig: tokenConfig,
+      financeService: service,
+    });
+    const login = await server.inject({
+      method: "POST",
+      url: "/v1/auth/login",
+      payload: { email: "admin@example.com", password },
+    });
+    const channelFeeRule = {
+      channel: "tray",
+      componentType: "fixed_fee",
+      payer: "seller",
+      feeMode: "fixed",
+      value: "6.0",
+      currency: "BRL",
+      source: "office_config",
+      rawCode: "fixed_listing",
+      confidence: "ESTIMATED",
+      validFrom: "2026-06-01T00:00:00.000Z",
+      validTo: "2026-06-30T23:59:59.999Z",
+    };
+
+    const response = await server.inject({
+      method: "POST",
+      url: `/v1/admin/offices/${officeId}/finance/rules`,
+      headers: { authorization: `Bearer ${login.json().accessToken}` },
+      payload: {
+        ruleSetId,
+        version: 2,
+        rulesJson: { rawCodeMappings: {} },
+        channelFeeRules: [
+          channelFeeRule,
+          { ...channelFeeRule, value: "6.0000" },
+        ],
+      },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({ error: "invalid_finance_rule_input" });
+    expect(service.creates).toEqual([]);
+    await server.close();
+  });
 });

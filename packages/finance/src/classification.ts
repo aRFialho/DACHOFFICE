@@ -5,6 +5,7 @@ import type {
   FinanceRuleVersion,
   Money,
 } from "./contracts.js";
+import { assertMoney } from "./contracts.js";
 import { percentageOfMoney, toMoney, toScaled } from "./decimal.js";
 
 export interface MaterializedEstimatedFeeComponent extends ClassifiedFinancialComponent {
@@ -43,11 +44,15 @@ export function selectEstimatedFeeRules(input: {
         componentKey(component.componentType, component.payer),
       ),
   );
-  return input.feeRules.filter(
+  const candidates = input.feeRules.filter(
     (rule) =>
       rule.financeRuleVersionId === input.ruleVersion.id &&
       rule.channel === input.channel &&
-      isValidAt(rule, input.occurredAt) &&
+      isValidAt(rule, input.occurredAt),
+  );
+  assertNoDuplicateEstimatedFeeRules(candidates);
+  return candidates.filter(
+    (rule) =>
       !realComponentPairs.has(componentKey(rule.componentType, rule.payer)),
   );
 }
@@ -88,6 +93,49 @@ export function materializeEstimatedFeeComponents(input: {
       confidence: "ESTIMATED",
     };
   });
+}
+
+export interface EstimatedFeeRuleIdentity {
+  channel: string;
+  componentType: string;
+  payer: string;
+  feeMode: string;
+  value: string;
+  currency?: string;
+  validFrom?: Date;
+  validTo?: Date;
+  source: string;
+  rawCode?: string;
+}
+
+export function assertNoDuplicateEstimatedFeeRules(
+  rules: readonly EstimatedFeeRuleIdentity[],
+): void {
+  const identities = new Set<string>();
+  for (const rule of rules) {
+    const identity = configuredFeeRuleIdentity(rule);
+    if (identities.has(identity))
+      throw new Error("duplicate configured channel fee rule");
+    identities.add(identity);
+  }
+}
+
+function configuredFeeRuleIdentity(rule: EstimatedFeeRuleIdentity): string {
+  return JSON.stringify([
+    rule.channel,
+    rule.componentType,
+    rule.payer,
+    rule.feeMode,
+    toMoney(
+      toScaled(assertMoney(rule.value, "channel fee rule value")),
+      "channel fee rule value",
+    ),
+    rule.currency ?? null,
+    rule.validFrom?.toISOString() ?? null,
+    rule.validTo?.toISOString() ?? null,
+    rule.source,
+    rule.rawCode ?? null,
+  ]);
 }
 
 function isValidAt(rule: ChannelFeeRule, occurredAt: Date): boolean {

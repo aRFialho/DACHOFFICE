@@ -178,4 +178,63 @@ describe("configured estimated fee materialization", () => {
       },
     });
   });
+
+  it("rejects UUID-distinct configured rules with the same financial and provenance semantics", () => {
+    expect(materializeEstimatedFeeComponents).toBeTypeOf("function");
+    if (materializeEstimatedFeeComponents === undefined) return;
+
+    const duplicateFixedFeeRules = [
+      {
+        ...feeRules[1]!,
+        id: "11111111-1111-4111-8111-111111111111",
+      },
+      {
+        ...feeRules[1]!,
+        id: "22222222-2222-4222-8222-222222222222",
+        value: money("6.0000"),
+      },
+    ];
+
+    expect(() =>
+      materializeEstimatedFeeComponents({
+        ruleVersion,
+        feeRules: duplicateFixedFeeRules,
+        channel: "marketplace",
+        occurredAt,
+        selectedRevenue: { amount: money("100.0000"), currency: "BRL" },
+        actualComponents: [],
+      }),
+    ).toThrow("duplicate configured channel fee rule");
+  });
+
+  it("keeps configured rules that differ in provenance semantics", () => {
+    expect(materializeEstimatedFeeComponents).toBeTypeOf("function");
+    if (materializeEstimatedFeeComponents === undefined) return;
+
+    const distinctFixedFeeRules = [
+      {
+        ...feeRules[1]!,
+        id: "11111111-1111-4111-8111-111111111111",
+      },
+      {
+        ...feeRules[1]!,
+        id: "22222222-2222-4222-822222222222",
+        rawCode: "configured_fixed_promotion",
+      },
+    ];
+
+    expect(
+      materializeEstimatedFeeComponents({
+        ruleVersion,
+        feeRules: distinctFixedFeeRules,
+        channel: "marketplace",
+        occurredAt,
+        selectedRevenue: { amount: money("100.0000"), currency: "BRL" },
+        actualComponents: [],
+      }).map((component) => component.componentId),
+    ).toEqual([
+      "estimated-fee-rule:11111111-1111-4111-8111-111111111111",
+      "estimated-fee-rule:22222222-2222-4222-822222222222",
+    ]);
+  });
 });

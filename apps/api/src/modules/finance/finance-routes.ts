@@ -2,6 +2,7 @@ import {
   assertChannelFeeRule,
   parseFinanceRuleMappings,
 } from "@dachbyte-office/finance";
+import { assertNoDuplicateEstimatedFeeRules } from "@dachbyte-office/finance/classification";
 import type { FastifyInstance } from "fastify";
 import { authenticateAdminMaster } from "../admin/admin-auth.js";
 import type { AuthService } from "../auth/service.js";
@@ -84,14 +85,23 @@ const createRuleVersionInput = (
   )
     return null;
   try {
+    const channelFeeRules = input.channelFeeRules.map((feeRule) =>
+      configuredFeeRule(feeRule, officeId),
+    );
+    assertNoDuplicateEstimatedFeeRules(
+      channelFeeRules.map((feeRule) => ({
+        ...feeRule,
+        id: placeholderFeeRuleId,
+        officeId,
+        financeRuleVersionId: placeholderRuleVersionId,
+      })),
+    );
     return {
       officeId,
       ruleSetId: input.ruleSetId as string,
       version: input.version,
       rulesJson: { rawCodeMappings: parseFinanceRuleMappings(input.rulesJson) },
-      channelFeeRules: input.channelFeeRules.map((feeRule) =>
-        configuredFeeRule(feeRule, officeId),
-      ),
+      channelFeeRules,
     };
   } catch {
     return null;
