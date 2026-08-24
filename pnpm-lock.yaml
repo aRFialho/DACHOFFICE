@@ -28,6 +28,9 @@ importers:
       "@dachbyte-office/catalog":
         specifier: workspace:*
         version: link:../../packages/catalog
+      "@dachbyte-office/finance":
+        specifier: workspace:*
+        version: link:../../packages/finance
       "@fastify/cookie":
         specifier: 11.0.2
         version: 11.0.2

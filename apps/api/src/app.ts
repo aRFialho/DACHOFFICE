@@ -18,6 +18,9 @@ import {
   registerCatalogRoutes,
   type CatalogSyncRequestService,
 } from "./modules/catalog/catalog-routes.js";
+import { registerFinanceRoutes } from "./modules/finance/finance-routes.js";
+import type { FinanceService } from "./modules/finance/finance-service.js";
+import type { FinanceTools } from "./modules/finance/finance-tools.js";
 
 export interface BuildServerOptions {
   authService?: AuthService;
@@ -28,6 +31,8 @@ export interface BuildServerOptions {
   taskService?: TaskService;
   catalogSyncRequestService?: CatalogSyncRequestService;
   storeGeneralTools?: StoreGeneralTools;
+  financeService?: FinanceService;
+  financeTools?: FinanceTools;
 }
 
 export const buildServer = (options: BuildServerOptions = {}) => {
@@ -74,6 +79,15 @@ export const buildServer = (options: BuildServerOptions = {}) => {
     registerCatalogRoutes(server, {
       authService: options.authService,
       catalogSyncRequestService: options.catalogSyncRequestService,
+    });
+  }
+  if (options.financeTools) {
+    server.decorate("financeTools", options.financeTools);
+  }
+  if (options.authService && options.financeService) {
+    registerFinanceRoutes(server, {
+      authService: options.authService,
+      financeService: options.financeService,
     });
   }
   return server;
