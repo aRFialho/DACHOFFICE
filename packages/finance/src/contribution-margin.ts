@@ -263,11 +263,14 @@ function deduplicateComponents(
 ): MarginComponent[] {
   const unique = new Map<string, MarginComponent>();
   for (const component of components) {
-    const existing = unique.get(component.componentId);
+    const identity = componentEvidenceIdentity(component);
+    const existing = unique.get(identity);
     if (existing === undefined) {
-      unique.set(component.componentId, component);
+      unique.set(identity, component);
     } else if (!sameComponent(existing, component)) {
-      throw new Error("duplicate componentId has conflicting evidence");
+      throw new Error(
+        "duplicate component evidence has conflicting amount or confidence",
+      );
     }
   }
   return [...unique.values()];
@@ -289,6 +292,20 @@ function deduplicateSellerItemDiscounts(
     }
   }
   return [...unique.values()];
+}
+
+function componentEvidenceIdentity(component: MarginComponent): string {
+  if (component.sourceReference === undefined)
+    return `component:${component.componentId}`;
+  return JSON.stringify([
+    component.source,
+    component.sourceReference,
+    component.rawCode ?? null,
+    component.componentType,
+    component.payer,
+    component.currency,
+    component.orderItemId ?? null,
+  ]);
 }
 
 function sameComponent(left: MarginComponent, right: MarginComponent): boolean {
