@@ -1,9 +1,13 @@
-import { expect, it, vi } from "vitest";
+import { afterEach, expect, it, vi } from "vitest";
 import type { TrayRefreshTransport } from "../../../packages/catalog/src/tray-credential-provider.js";
-import { createWorkerRuntime } from "../src/worker.js";
+import { createWorkerRuntime, startWorker } from "../src/worker.js";
 import { createConcreteCatalogSyncWorker } from "../src/catalog-sync-runtime.js";
 import { createTrayRefreshTransport } from "../src/tray-refresh-transport.js";
 import { startConfiguredWorker } from "../src/worker-entrypoint.js";
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 it("composes the concrete catalog sync runner without provider work during construction", () => {
   const worker = createConcreteCatalogSyncWorker({
@@ -96,6 +100,65 @@ it("uses a server-owned Tray refresh transport without exposing OAuth values", a
   ).not.toContain("server-client-secret");
 });
 
+it("aborts a hung Tray refresh and lets the worker settle before its next poll", async () => {
+  vi.useFakeTimers();
+  let refreshFailure: unknown;
+  let seenSignal: AbortSignal | undefined;
+  let catalogAttempts = 0;
+  const refreshToken = "stored-refresh-token";
+  const clientSecret = "server-client-secret";
+  const refresh = createTrayRefreshTransport({
+    clientId: "server-client-id",
+    clientSecret,
+    timeoutMs: 100,
+    fetch: async (_url, init) =>
+      new Promise<Response>((_resolve, reject) => {
+        seenSignal = init?.signal ?? undefined;
+        seenSignal?.addEventListener(
+          "abort",
+          () => reject(new Error("transport aborted")),
+          { once: true },
+        );
+      }),
+  });
+  const worker = startWorker({
+    pool: {} as never,
+    encryptionKeyBase64: Buffer.alloc(32, 8).toString("base64"),
+    fetch: async () => {
+      throw new Error("catalog fetch must not run in this test");
+    },
+    refreshTransport: refresh,
+    intervalMs: 1_000,
+    taskWorkerFactory: () => ({ consumeOne: async () => false }),
+    catalogWorkerFactory: () =>
+      ({
+        consumeOne: async () => {
+          catalogAttempts += 1;
+          if (catalogAttempts === 1) {
+            try {
+              await refresh.refresh({
+                apiAddress: "https://store.example",
+                refreshToken,
+              });
+            } catch (error) {
+              refreshFailure = error;
+            }
+          }
+          return false;
+        },
+      }) as never,
+  });
+
+  await vi.advanceTimersByTimeAsync(100);
+  expect(seenSignal?.aborted).toBe(true);
+  expect(refreshFailure).toEqual(new Error("tray_refresh_failed"));
+  expect(String(refreshFailure)).not.toContain(refreshToken);
+  expect(String(refreshFailure)).not.toContain(clientSecret);
+
+  await vi.advanceTimersByTimeAsync(1_000);
+  expect(catalogAttempts).toBe(2);
+  worker.stop();
+});
 it("starts the real worker runtime with only server environment configuration", () => {
   const start = vi.fn(() => ({
     stop: vi.fn(),
