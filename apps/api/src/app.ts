@@ -13,6 +13,7 @@ import { registerOfficeRoutes } from "./modules/admin/office-routes.js";
 import type { OfficeService } from "./modules/admin/office-service.js";
 import { registerTaskRoutes } from "./modules/tasks/task-routes.js";
 import type { TaskService } from "./modules/tasks/task-service.js";
+import type { StoreGeneralTools } from "./modules/catalog/store-general-tools.js";
 import {
   registerCatalogRoutes,
   type CatalogSyncRequestService,
@@ -26,6 +27,7 @@ export interface BuildServerOptions {
   officeService?: OfficeService;
   taskService?: TaskService;
   catalogSyncRequestService?: CatalogSyncRequestService;
+  storeGeneralTools?: StoreGeneralTools;
 }
 
 export const buildServer = (options: BuildServerOptions = {}) => {
@@ -65,6 +67,7 @@ export const buildServer = (options: BuildServerOptions = {}) => {
       taskService: options.taskService,
     });
   }
+  if (options.storeGeneralTools) { server.decorate("storeGeneralTools", options.storeGeneralTools); }
   if (options.authService && options.catalogSyncRequestService) {
     registerCatalogRoutes(server, {
       authService: options.authService,

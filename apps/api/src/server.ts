@@ -12,6 +12,7 @@ import { createAuthService } from "./modules/auth/service.js";
 import { PostgresTaskRepository } from "./modules/tasks/postgres-task-repository.js";
 import { createTaskService } from "./modules/tasks/task-service.js";
 import { PostgresCatalogSyncRequestService } from "./modules/catalog/catalog-routes.js";
+import { createStoreGeneralRuntime } from "./modules/catalog/postgres-store-general-runtime.js";
 
 const runtimeConfig = loadAuthRuntimeConfig(process.env);
 const pool = new pg.Pool({ connectionString: runtimeConfig.databaseUrl });
@@ -26,6 +27,7 @@ const agentService = createAgentService(new PostgresAgentRepository(pool));
 const officeService = createOfficeService(new PostgresOfficeRepository(pool));
 const taskService = createTaskService(new PostgresTaskRepository(pool));
 const catalogSyncRequestService = new PostgresCatalogSyncRequestService(pool);
+const storeGeneralTools = createStoreGeneralRuntime(pool);
 const server = buildServer({
   authService,
   authTokenConfig: runtimeConfig.tokenConfig,
@@ -34,6 +36,7 @@ const server = buildServer({
   officeService,
   taskService,
   catalogSyncRequestService,
+  storeGeneralTools,
 });
 
 server.addHook("onClose", async () => {

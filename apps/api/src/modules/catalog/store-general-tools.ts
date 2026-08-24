@@ -82,3 +82,5 @@ export const createStoreGeneralTools = (options: {
   };
   return { definitions: storeGeneralToolDefinitions, registry, authorizationService, invoke };
 };
+
+export type StoreGeneralTools = ReturnType<typeof createStoreGeneralTools>;
