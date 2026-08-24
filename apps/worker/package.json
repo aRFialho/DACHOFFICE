@@ -6,6 +6,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "start": "node dist/apps/worker/src/server.js",
+    "bootstrap:tray": "node dist/apps/worker/src/scripts/bootstrap-tray-connection.js",
     "test": "vitest run --exclude dist/**",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "queue:smoke": "vitest run test/worker.test.ts"
