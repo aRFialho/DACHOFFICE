@@ -165,6 +165,14 @@ const sameConfiguration = (
       stableJson(actualFees)
   );
 };
+const isRuleVersionUniqueViolation = (error: unknown): boolean =>
+  typeof error === "object" &&
+  error !== null &&
+  "code" in error &&
+  "constraint" in error &&
+  (error as { code?: unknown }).code === "23505" &&
+  (error as { constraint?: unknown }).constraint ===
+    "finance_rule_version_rule_set_id_version_key";
 export class PostgresFinanceRepository implements FinanceService {
   constructor(private readonly pool: FinanceSqlPool) {}
 
@@ -221,34 +229,48 @@ export class PostgresFinanceRepository implements FinanceService {
     }
   }
 
+  private async existingConfigurationResult(
+    client: FinanceSqlClient,
+    input: CreateFinanceRuleVersionInput,
+  ): Promise<{ status: "unchanged" } | { status: "conflict" } | null> {
+    const existing = await client.query(
+      `SELECT id, rules_json
+       FROM finance_rule_version
+       WHERE office_id = $1 AND rule_set_id = $2 AND version = $3
+       FOR UPDATE`,
+      [input.officeId, input.ruleSetId, input.version],
+    );
+    const existingVersion = existing.rows[0];
+    if (!existingVersion) return null;
+    const feeRules = await client.query(
+      `SELECT channel, component_type, payer, fee_mode, value_numeric::text AS value_numeric,
+              currency, source, raw_code, confidence, valid_from, valid_to
+       FROM channel_fee_rule
+       WHERE office_id = $1 AND finance_rule_version_id = $2
+       ORDER BY id ASC`,
+      [input.officeId, existingVersion.id],
+    );
+    return sameConfiguration(input, existingVersion, feeRules.rows)
+      ? { status: "unchanged" }
+      : { status: "conflict" };
+  }
+
   async createRuleVersion(input: CreateFinanceRuleVersionInput) {
     const client = await this.pool.connect();
+    let insertingRuleVersion = false;
     try {
       await client.query("BEGIN");
-      const existing = await client.query(
-        `SELECT id, rules_json
-         FROM finance_rule_version
-         WHERE office_id = $1 AND rule_set_id = $2 AND version = $3
-         FOR UPDATE`,
-        [input.officeId, input.ruleSetId, input.version],
+      const existingResult = await this.existingConfigurationResult(
+        client,
+        input,
       );
-      const existingVersion = existing.rows[0];
-      if (existingVersion) {
-        const feeRules = await client.query(
-          `SELECT channel, component_type, payer, fee_mode, value_numeric::text AS value_numeric,
-                  currency, source, raw_code, confidence, valid_from, valid_to
-           FROM channel_fee_rule
-           WHERE office_id = $1 AND finance_rule_version_id = $2
-           ORDER BY id ASC`,
-          [input.officeId, existingVersion.id],
-        );
+      if (existingResult) {
         await client.query("COMMIT");
-        return sameConfiguration(input, existingVersion, feeRules.rows)
-          ? { status: "unchanged" as const }
-          : { status: "conflict" as const };
+        return existingResult;
       }
 
       const ruleVersionId = randomUUID();
+      insertingRuleVersion = true;
       await client.query(
         `INSERT INTO finance_rule_version (id, office_id, rule_set_id, version, rules_json)
          VALUES ($1, $2, $3, $4, $5::jsonb)`,
@@ -260,6 +282,7 @@ export class PostgresFinanceRepository implements FinanceService {
           JSON.stringify(input.rulesJson),
         ],
       );
+      insertingRuleVersion = false;
       for (const feeRule of input.channelFeeRules) {
         await client.query(
           `INSERT INTO channel_fee_rule
@@ -288,7 +311,21 @@ export class PostgresFinanceRepository implements FinanceService {
       return { status: "created" as const, ruleVersionId };
     } catch (error) {
       await client.query("ROLLBACK");
-      throw error;
+      if (!insertingRuleVersion || !isRuleVersionUniqueViolation(error))
+        throw error;
+      try {
+        await client.query("BEGIN");
+        const retryResult = await this.existingConfigurationResult(
+          client,
+          input,
+        );
+        if (!retryResult) throw error;
+        await client.query("COMMIT");
+        return retryResult;
+      } catch (retryError) {
+        await client.query("ROLLBACK");
+        throw retryError;
+      }
     } finally {
       client.release();
     }

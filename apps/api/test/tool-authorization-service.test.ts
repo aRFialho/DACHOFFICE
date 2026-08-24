@@ -66,6 +66,7 @@ const productsUpdatePrice = defineTool({
 });
 
 const autonomousWriteContext = {
+  officeId: "11111111-1111-4111-8111-111111111111",
   hasTaskAuthority: true,
   lifecycleStatus: "active" as const,
   grants: [

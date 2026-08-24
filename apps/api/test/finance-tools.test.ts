@@ -9,6 +9,7 @@ import { ToolRegistry } from "../src/modules/tools/tool-registry.js";
 
 const officeId = "11111111-1111-4111-8111-111111111111";
 const trustedContext = {
+  officeId: "11111111-1111-4111-8111-111111111111",
   hasTaskAuthority: true,
   lifecycleStatus: "active" as const,
   grants: [
@@ -60,7 +61,7 @@ describe("finance read tools", () => {
       tools.invoke({
         taskId: "task-1",
         toolCode: "finance.getRules",
-        input: { officeId },
+        input: {},
       }),
     ).resolves.toEqual({ status: "denied", reason: "tool_grant_missing" });
     expect(repository.reads).toBe(0);

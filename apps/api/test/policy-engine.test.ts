@@ -39,6 +39,7 @@ const sensitiveTool = tool("customers.export", "SENSITIVE");
 
 const context = (registeredTool: RegisteredTool): PolicyEvaluationInput => ({
   tool: registeredTool,
+  officeId: "11111111-1111-4111-8111-111111111111",
   hasTaskAuthority: true,
   lifecycleStatus: "active" as const,
   grants: [

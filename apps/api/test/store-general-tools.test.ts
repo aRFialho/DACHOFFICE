@@ -9,6 +9,7 @@ import { ToolRegistry } from "../src/modules/tools/tool-registry.js";
 import { PostgresPolicyEvaluationContextLoader } from "../src/modules/catalog/postgres-store-general-runtime.js";
 
 const context = {
+  officeId: "11111111-1111-4111-8111-111111111111",
   hasTaskAuthority: true,
   lifecycleStatus: "active" as const,
   grants: [
@@ -94,6 +95,7 @@ describe("Store General tools", () => {
           return {
             rows: [
               {
+                office_id: "11111111-1111-4111-8111-111111111111",
                 agent_id: "agent-1",
                 lifecycle_status: "active",
                 active_version_id: "version-1",

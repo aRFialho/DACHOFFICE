@@ -11,8 +11,8 @@ import type { FinanceService } from "./finance-service.js";
 const uuidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-type RuleInput = { officeId: string };
-type MarginInput = { officeId: string; orderHeaderId: string };
+type RuleInput = Record<string, never>;
+type MarginInput = { orderHeaderId: string };
 
 export type FinanceReadRepository = Pick<
   FinanceService,
@@ -23,23 +23,33 @@ export interface FinancePolicyEvaluationContextLoader {
   load(taskId: string): Promise<PolicyEvaluationContext | null>;
 }
 
-const uuidSchema = <T extends RuleInput | MarginInput>(
-  fields: readonly string[],
-): RuntimeSchema<T> => ({
+const emptyObjectSchema: RuntimeSchema<RuleInput> = {
+  parse(value) {
+    if (
+      value === null ||
+      typeof value !== "object" ||
+      Array.isArray(value) ||
+      Object.keys(value).length !== 0
+    )
+      return { ok: false };
+    return { ok: true, value: {} };
+  },
+};
+
+const marginSchema: RuntimeSchema<MarginInput> = {
   parse(value) {
     if (value === null || typeof value !== "object" || Array.isArray(value))
       return { ok: false };
     const input = value as Record<string, unknown>;
-    const parsed: Record<string, string> = {};
-    for (const field of fields) {
-      const fieldValue = input[field];
-      if (typeof fieldValue !== "string" || !uuidPattern.test(fieldValue))
-        return { ok: false };
-      parsed[field] = fieldValue;
-    }
-    return { ok: true, value: parsed as T };
+    if (
+      Object.keys(input).length !== 1 ||
+      typeof input.orderHeaderId !== "string" ||
+      !uuidPattern.test(input.orderHeaderId)
+    )
+      return { ok: false };
+    return { ok: true, value: { orderHeaderId: input.orderHeaderId } };
   },
-});
+};
 
 const outputSchema: RuntimeSchema<unknown> = {
   parse: (value) => ({ ok: true, value }),
@@ -50,8 +60,8 @@ export const financeToolDefinitions = [
     code: "finance.getRules",
     integration: "finance",
     description:
-      "Get the latest configured finance rule version for an office.",
-    inputSchema: uuidSchema<RuleInput>(["officeId"]),
+      "Get the latest configured finance rule version for the authorized task office.",
+    inputSchema: emptyObjectSchema,
     outputSchema,
     actionClass: "READ",
     idempotency: "not_required",
@@ -62,8 +72,9 @@ export const financeToolDefinitions = [
   defineTool({
     code: "finance.getMargin",
     integration: "finance",
-    description: "Get the latest immutable contribution-margin snapshot.",
-    inputSchema: uuidSchema<MarginInput>(["officeId", "orderHeaderId"]),
+    description:
+      "Get the latest immutable contribution-margin snapshot for the authorized task office.",
+    inputSchema: marginSchema,
     outputSchema,
     actionClass: "READ",
     idempotency: "not_required",
@@ -102,14 +113,12 @@ export const createFinanceTools = (options: {
     const validated = registry.validateInput(request.toolCode, request.input);
     if (!validated.ok) return { status: "denied", reason: validated.reason };
 
-    if (request.toolCode === "finance.getRules") {
-      const input = validated.input as RuleInput;
-      return repository.getLatestRuleVersion(input.officeId);
-    }
+    if (request.toolCode === "finance.getRules")
+      return repository.getLatestRuleVersion(context.officeId);
     if (request.toolCode === "finance.getMargin") {
       const input = validated.input as MarginInput;
       return repository.getLatestMarginSnapshot(
-        input.officeId,
+        context.officeId,
         input.orderHeaderId,
       );
     }

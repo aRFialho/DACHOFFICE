@@ -15,6 +15,7 @@ export interface PolicyToolGrant {
 export interface PolicyEvaluationInput {
   tool: RegisteredTool;
   hasTaskAuthority: boolean;
+  officeId: string;
   lifecycleStatus: AgentLifecycleStatus;
   grants: readonly PolicyToolGrant[];
   activeAgentVersionId: string;

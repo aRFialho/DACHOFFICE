@@ -14,6 +14,7 @@ import {
 
 type SqlPool = Pick<Pool, "query">;
 type ContextRow = {
+  office_id: unknown;
   agent_id: unknown;
   lifecycle_status: unknown;
   active_version_id: unknown;
@@ -50,7 +51,7 @@ export class PostgresPolicyEvaluationContextLoader implements PolicyEvaluationCo
 
   async load(taskId: string): Promise<PolicyEvaluationContext | null> {
     const contextResult = await this.pool.query<ContextRow>(
-      `SELECT t.assigned_agent_id AS agent_id, a.lifecycle_status, a.active_version_id,
+      `SELECT t.office_id AS office_id, t.assigned_agent_id AS agent_id, a.lifecycle_status, a.active_version_id,
               av.trust_ceiling, o.trust_level
        FROM task t
        JOIN agent a ON a.id = t.assigned_agent_id AND a.office_id = t.office_id
@@ -61,12 +62,14 @@ export class PostgresPolicyEvaluationContextLoader implements PolicyEvaluationCo
     );
     const record = contextResult.rows[0];
     if (!record) return null;
+    const officeId = text(record.office_id);
     const agentId = text(record.agent_id);
     const lifecycle = lifecycleStatus(record.lifecycle_status);
     const activeVersionId = text(record.active_version_id);
     const agentTrustCeiling = trustLevel(record.trust_ceiling);
     const officeTrustLevel = trustLevel(record.trust_level);
     if (
+      !officeId ||
       !agentId ||
       !lifecycle ||
       !activeVersionId ||
@@ -93,6 +96,7 @@ export class PostgresPolicyEvaluationContextLoader implements PolicyEvaluationCo
       });
     }
     return {
+      officeId,
       hasTaskAuthority: true,
       lifecycleStatus: lifecycle,
       grants,
