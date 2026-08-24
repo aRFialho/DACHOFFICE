@@ -15,9 +15,13 @@ type TokenResponse = {
   api_address?: unknown;
 };
 
+type BootstrapTarget = { officeId: string; integrationId: string };
+
 export type TrayBootstrapPersistence = {
-  hasConnection?(): Promise<boolean>;
+  hasConnection?(input: BootstrapTarget): Promise<boolean>;
   persist(input: {
+    officeId: string;
+    integrationId: string;
     apiAddress: string;
     storeId: string;
     accessToken: EncryptedTrayToken;
@@ -54,12 +58,17 @@ export class TrayConnectionBootstrap {
 
   async run(): Promise<{ outcome: "created" | "unchanged" }> {
     const configuration = readConfiguration(this.options.environment);
-    if (await this.options.repository.hasConnection?.()) {
+    const target = {
+      officeId: configuration.officeId,
+      integrationId: configuration.integrationId,
+    };
+    if (await this.options.repository.hasConnection?.(target)) {
       return { outcome: "unchanged" };
     }
 
     const token = await this.exchange(configuration);
     return this.options.repository.persist({
+      ...target,
       apiAddress: token.apiAddress,
       // Tray's OAuth response has no stable store ID. api_address is the
       // validated, provider-issued store-scoped identifier used by this schema.
@@ -163,6 +172,8 @@ function readConfiguration(environment: BootstrapEnvironment): {
   clientSecret: string;
   authorizationCode: string;
   encryptionKey: Buffer;
+  officeId: string;
+  integrationId: string;
   expectedApiAddress: string | undefined;
 } {
   if (environment.TRAY_BOOTSTRAP_ENABLED !== "true") {
@@ -177,6 +188,11 @@ function readConfiguration(environment: BootstrapEnvironment): {
   const encryptionKey = decodeEncryptionKey(
     required(environment, "TRAY_TOKEN_ENCRYPTION_KEY"),
   );
+  const officeId = requiredUuid(environment, "TRAY_BOOTSTRAP_OFFICE_ID");
+  const integrationId = requiredUuid(
+    environment,
+    "TRAY_BOOTSTRAP_INTEGRATION_ID",
+  );
   const expectedApiAddress = environment.TRAY_BOOTSTRAP_API_ADDRESS?.trim();
   if (expectedApiAddress && !validApiAddress(expectedApiAddress))
     throw new TrayBootstrapError("tray_bootstrap_configuration_invalid");
@@ -185,6 +201,8 @@ function readConfiguration(environment: BootstrapEnvironment): {
     clientSecret,
     authorizationCode,
     encryptionKey,
+    officeId,
+    integrationId,
     expectedApiAddress,
   };
 }
@@ -193,6 +211,18 @@ function required(environment: BootstrapEnvironment, name: string): string {
   const value = environment[name]?.trim();
   if (!value)
     throw new TrayBootstrapError("tray_bootstrap_configuration_invalid");
+  return value;
+}
+
+function requiredUuid(environment: BootstrapEnvironment, name: string): string {
+  const value = required(environment, name);
+  if (
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      value,
+    )
+  ) {
+    throw new TrayBootstrapError("tray_bootstrap_configuration_invalid");
+  }
   return value;
 }
 

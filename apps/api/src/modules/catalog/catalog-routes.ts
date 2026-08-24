@@ -82,19 +82,19 @@ export class PostgresCatalogSyncRequestService implements CatalogSyncRequestServ
   }
 }
 
+const uuidPattern =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 const parseIntegrationId = (body: unknown): string | null | undefined => {
   if (body === undefined || body === null) return undefined;
   if (typeof body !== "object" || Array.isArray(body)) return null;
   const integrationId = (body as Record<string, unknown>).integrationId;
   if (integrationId === undefined) return undefined;
-  if (
-    typeof integrationId !== "string" ||
-    integrationId.trim().length === 0 ||
-    integrationId.length > 80
-  ) {
+  if (typeof integrationId !== "string") {
     return null;
   }
-  return integrationId;
+  const normalized = integrationId.trim();
+  return uuidPattern.test(normalized) ? normalized : null;
 };
 
 export const registerCatalogRoutes = (

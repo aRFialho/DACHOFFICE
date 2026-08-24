@@ -29,16 +29,20 @@ secret mechanism or ignored local environment. The Tray-related names are:
 - `TRAY_BOOTSTRAP_CLIENT_ID`
 - `TRAY_BOOTSTRAP_CLIENT_SECRET`
 - `TRAY_BOOTSTRAP_AUTHORIZATION_CODE`
+- `TRAY_BOOTSTRAP_OFFICE_ID`
+- `TRAY_BOOTSTRAP_INTEGRATION_ID`
 - `TRAY_BOOTSTRAP_API_ADDRESS`
 
 These values are server-only. The bootstrap authorization code is for the
 controlled connection bootstrap path, not a browser callback or public route.
+The bootstrap command requires an explicit office and a Tray integration owned
+by that office; it never selects a connection from another Office.
 
 ## Sync operation
 
 An Admin Master starts a catalog synchronization with
 `POST /v1/integrations/tray/catalog-sync`. An optional bounded
-`integrationId` selects an active Tray integration; otherwise the earliest
+UUID `integrationId` selects an active Tray integration; otherwise the earliest
 active Tray integration is used. A successful request returns HTTP 202 with a
 sync-run ID.
 

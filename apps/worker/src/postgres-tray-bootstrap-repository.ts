@@ -4,17 +4,17 @@ import type { TrayBootstrapPersistence } from "./tray-bootstrap.js";
 export class PostgresTrayBootstrapRepository implements TrayBootstrapPersistence {
   constructor(private readonly pool: Pool) {}
 
-  async hasConnection(): Promise<boolean> {
+  async hasConnection(input: {
+    officeId: string;
+    integrationId: string;
+  }): Promise<boolean> {
     const result = await this.pool.query(
       `SELECT 1
-       FROM tray_store_connection
-       WHERE integration_id = (
-         SELECT id FROM integration
-         WHERE type = 'tray' AND status = 'active'
-         ORDER BY created_at ASC, id ASC
-         LIMIT 1
-       )
-       )`,
+       FROM tray_store_connection connection
+       JOIN integration i ON i.id = connection.integration_id
+       WHERE i.office_id = $1 AND i.id = $2
+         AND i.type = 'tray' AND i.status = 'active'`,
+      [input.officeId, input.integrationId],
     );
     return (result.rowCount ?? 0) > 0;
   }
@@ -25,9 +25,10 @@ export class PostgresTrayBootstrapRepository implements TrayBootstrapPersistence
       await client.query("BEGIN");
       const integration = await client.query<{ id: string }>(
         `SELECT id FROM integration
-         WHERE type = 'tray' AND status = 'active'
-         ORDER BY created_at ASC, id ASC
-         LIMIT 1 FOR UPDATE`,
+         WHERE office_id = $1 AND id = $2
+           AND type = 'tray' AND status = 'active'
+         FOR UPDATE`,
+        [input.officeId, input.integrationId],
       );
       const integrationId = integration.rows[0]?.id;
       if (!integrationId) {

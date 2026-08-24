@@ -77,12 +77,40 @@ describe("catalog sync route", () => {
       method: "POST",
       url: "/v1/integrations/tray/catalog-sync",
       headers: { authorization: `Bearer ${login.json().accessToken}` },
-      payload: { integrationId: "integration-1" },
+      payload: { integrationId: "11111111-1111-4111-8111-111111111111" },
     });
 
     expect(response.statusCode).toBe(202);
     expect(response.json()).toEqual({ runId: "run-1" });
-    expect(service.requests).toEqual([{ integrationId: "integration-1" }]);
+    expect(service.requests).toEqual([
+      { integrationId: "11111111-1111-4111-8111-111111111111" },
+    ]);
+    await server.close();
+  });
+
+  it("rejects a non-UUID integration selection before queuing work", async () => {
+    const service = new RecordingCatalogSyncRequestService();
+    const server = buildServer({
+      authService: createAuthService({ repository, tokenConfig }),
+      authTokenConfig: tokenConfig,
+      catalogSyncRequestService: service,
+    });
+    const login = await server.inject({
+      method: "POST",
+      url: "/v1/auth/login",
+      payload: { email: "admin@example.com", password },
+    });
+
+    const response = await server.inject({
+      method: "POST",
+      url: "/v1/integrations/tray/catalog-sync",
+      headers: { authorization: `Bearer ${login.json().accessToken}` },
+      payload: { integrationId: "not-a-uuid" },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({ error: "invalid_catalog_sync_input" });
+    expect(service.requests).toEqual([]);
     await server.close();
   });
 });

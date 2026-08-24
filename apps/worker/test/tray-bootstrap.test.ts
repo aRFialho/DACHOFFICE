@@ -11,6 +11,8 @@ const environment = {
   TRAY_BOOTSTRAP_CLIENT_ID: "client-id",
   TRAY_BOOTSTRAP_CLIENT_SECRET: "client-secret",
   TRAY_BOOTSTRAP_AUTHORIZATION_CODE: "authorization-code",
+  TRAY_BOOTSTRAP_OFFICE_ID: "11111111-1111-4111-8111-111111111111",
+  TRAY_BOOTSTRAP_INTEGRATION_ID: "22222222-2222-4222-8222-222222222222",
   TRAY_TOKEN_ENCRYPTION_KEY: testKey,
 };
 
@@ -144,5 +146,17 @@ it("requires an explicit server-side bootstrap invocation", async () => {
 
   await expect(bootstrap.run()).rejects.toEqual(
     new TrayBootstrapError("tray_bootstrap_not_enabled"),
+  );
+});
+
+it("requires an explicit office and integration selection", async () => {
+  const bootstrap = new TrayConnectionBootstrap({
+    environment: { ...environment, TRAY_BOOTSTRAP_OFFICE_ID: undefined },
+    fetch: async () => successResponse(),
+    repository: { persist: async () => ({ outcome: "created" as const }) },
+  });
+
+  await expect(bootstrap.run()).rejects.toEqual(
+    new TrayBootstrapError("tray_bootstrap_configuration_invalid"),
   );
 });
