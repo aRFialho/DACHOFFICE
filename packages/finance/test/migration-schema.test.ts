@@ -68,10 +68,19 @@ describe("finance margin migration", () => {
 
   it("freezes fee rule inserts, updates, and deletes after their version is used", () => {
     expect(migration).toMatch(
-      /CREATE FUNCTION reject_used_channel_fee_rule_mutation\(\) RETURNS trigger LANGUAGE plpgsql AS \$\$[\s\S]*?IF TG_OP = 'DELETE' THEN[\s\S]*?OLD.finance_rule_version_id[\s\S]*?NEW.finance_rule_version_id[\s\S]*?IF EXISTS \([\s\S]*?FROM order_margin_snapshot[\s\S]*?finance_rule_version_id = referenced_rule_version_id[\s\S]*?office_id = referenced_office_id[\s\S]*?\)[\s\S]*?RAISE EXCEPTION 'channel_fee_rule is immutable after finance rule version use';[\s\S]*?\$\$;/,
+      /CREATE FUNCTION reject_used_channel_fee_rule_mutation\(\) RETURNS trigger LANGUAGE plpgsql AS \$\$[\s\S]*?RAISE EXCEPTION 'channel_fee_rule is immutable after finance rule version use';[\s\S]*?RAISE EXCEPTION 'channel_fee_rule is immutable after finance rule version use';[\s\S]*?\$\$;/,
     );
     expect(migration).toContain(
       "BEFORE INSERT OR UPDATE OR DELETE ON channel_fee_rule",
+    );
+  });
+
+  it("checks both associations before a fee rule can move between versions", () => {
+    expect(migration).toMatch(
+      /IF TG_OP <> 'INSERT' AND EXISTS \([\s\S]*?FROM order_margin_snapshot[\s\S]*?finance_rule_version_id = OLD.finance_rule_version_id[\s\S]*?office_id = OLD.office_id[\s\S]*?\) THEN[\s\S]*?RAISE EXCEPTION 'channel_fee_rule is immutable after finance rule version use';/,
+    );
+    expect(migration).toMatch(
+      /IF TG_OP <> 'DELETE' AND EXISTS \([\s\S]*?FROM order_margin_snapshot[\s\S]*?finance_rule_version_id = NEW.finance_rule_version_id[\s\S]*?office_id = NEW.office_id[\s\S]*?\) THEN[\s\S]*?RAISE EXCEPTION 'channel_fee_rule is immutable after finance rule version use';/,
     );
   });
 });
