@@ -6,10 +6,13 @@ Sprint 5 local implementation and accepted task reviews are complete. On
 2026-08-24, the primary agent independently ran `scripts/db-migrate.mjs` from
 the Sprint 5 worktree with the repository root environment configuration and
 observed `Applied migration 006_finance_margin.sql`; it then ran
-`scripts/db-health.mjs` and observed health passed. The database deployment
-gate is complete. Connected marketplace/provider staging validation has **not**
-been performed. It remains a separate release gate; this document does not
-claim it has passed.
+`scripts/db-health.mjs` and observed health passed. Later that date, the
+primary agent independently applied the finance-invariant migration
+`007_finance_rule_invariants.sql`; the immediately following health validation
+also passed. Both finance migration deployments and their postflight health
+validation are complete. Connected marketplace/provider staging validation has
+**not** been performed. It remains a separate release gate; this document does
+not claim it has passed.
 
 ## Financial domain and DRE
 
@@ -98,7 +101,7 @@ supply an office ID, so a task cannot read another office's finance data. Tool
 and API reads select persisted PostgreSQL fields only; they do not call a
 marketplace, provider, integration, worker, or Action Executor.
 
-## Migration 006 release record
+## Migration 006 and 007 release record
 
 On 2026-08-24, the primary agent independently executed
 `scripts/db-migrate.mjs` from the Sprint 5 worktree using the repository root
@@ -110,7 +113,14 @@ not include a connection value, secret, environment value, or raw financial
 evidence.
 
 Migration 006 is additive, but it creates durable financial evidence and can
-be referenced by downstream data.
+be referenced by downstream data. Migration 007 is forward-only.
+
+Later on 2026-08-24, the primary agent independently applied
+`007_finance_rule_invariants.sql`, the forward finance-invariant migration.
+The immediately following database-health validation passed. This is separate
+deployment and postflight evidence for the finance invariants and likewise
+does not include a connection value, secret, environment value, or raw
+financial evidence.
 Operational records must not include a connection string, secret, environment
 value, or raw financial evidence.
 
@@ -134,7 +144,7 @@ schema or financial evidence already in use.
 | Office-scoped admin reads/configuration and retries                    | `apps/api/src/modules/finance/`; finance repository, route, configuration, and concurrent-retry tests (Task 4 re-review accepted).                                                                                   |
 | Authorized semantic finance reads                                      | `apps/api/src/modules/finance/finance-tools.ts`; policy context office binding and `finance-tools-office-scope.test.ts` (Task 4 re-review accepted).                                                                 |
 | Local release quality                                                  | Task records report finance/API/workspace tests and typechecks, Prettier, and `git diff --check` passing at their respective accepted revisions.                                                                     |
-| Database deployment                                                    | 2026-08-24 primary-agent evidence: `scripts/db-migrate.mjs` observed `Applied migration 006_finance_margin.sql`; immediately following `scripts/db-health.mjs` observed health passed.                               |
+| Database deployment                                                    | 2026-08-24 primary-agent evidence: 006 applied with subsequent health pass; independent application of forward invariant migration `007_finance_rule_invariants.sql` also had an immediate health pass.              |
 
 ## Deferred staging acceptance
 
