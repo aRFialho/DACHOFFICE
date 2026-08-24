@@ -41,4 +41,28 @@ describe("finance margin migration", () => {
       /CREATE TABLE IF NOT EXISTS order_margin_snapshot[\s\S]*?updated_at/,
     );
   });
+
+  it("rejects updates and deletes of immutable margin evidence", () => {
+    expect(migration).toMatch(
+      /CREATE FUNCTION reject_order_margin_snapshot_mutation\(\) RETURNS trigger LANGUAGE plpgsql AS \$\$[\s\S]*?RAISE EXCEPTION 'order_margin_snapshot is immutable';[\s\S]*?\$\$;/,
+    );
+    expect(migration).toContain(
+      "BEFORE UPDATE OR DELETE ON order_margin_snapshot",
+    );
+  });
+
+  it("rejects a referenced finance rule version from being updated or deleted", () => {
+    expect(migration).toMatch(
+      /CREATE FUNCTION reject_referenced_finance_rule_version_mutation\(\) RETURNS trigger LANGUAGE plpgsql AS \$\$[\s\S]*?IF EXISTS \([\s\S]*?FROM order_margin_snapshot[\s\S]*?finance_rule_version_id = OLD.id[\s\S]*?office_id = OLD.office_id[\s\S]*?\)[\s\S]*?RAISE EXCEPTION 'finance_rule_version is immutable after use';[\s\S]*?\$\$;/,
+    );
+    expect(migration).toContain(
+      "BEFORE UPDATE OR DELETE ON finance_rule_version",
+    );
+  });
+
+  it("indexes fee rules by their finance rule version", () => {
+    expect(migration).toContain(
+      "CREATE INDEX IF NOT EXISTS channel_fee_rule_finance_rule_version_idx\n  ON channel_fee_rule (finance_rule_version_id, channel, valid_from, valid_to);",
+    );
+  });
 });

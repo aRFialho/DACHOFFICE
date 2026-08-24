@@ -161,3 +161,39 @@ CREATE INDEX IF NOT EXISTS order_financial_component_order_header_idx
 
 CREATE INDEX IF NOT EXISTS order_margin_snapshot_order_calculated_idx
   ON order_margin_snapshot (order_header_id, calculated_at DESC);
+
+CREATE INDEX IF NOT EXISTS channel_fee_rule_finance_rule_version_idx
+  ON channel_fee_rule (finance_rule_version_id, channel, valid_from, valid_to);
+
+CREATE FUNCTION reject_order_margin_snapshot_mutation() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  RAISE EXCEPTION 'order_margin_snapshot is immutable';
+END;
+$$;
+
+CREATE TRIGGER order_margin_snapshot_immutable
+  BEFORE UPDATE OR DELETE ON order_margin_snapshot
+  FOR EACH ROW EXECUTE FUNCTION reject_order_margin_snapshot_mutation();
+
+CREATE FUNCTION reject_referenced_finance_rule_version_mutation() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM order_margin_snapshot
+    WHERE finance_rule_version_id = OLD.id
+      AND office_id = OLD.office_id
+  ) THEN
+    RAISE EXCEPTION 'finance_rule_version is immutable after use';
+  END IF;
+
+  IF TG_OP = 'DELETE' THEN
+    RETURN OLD;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER finance_rule_version_immutable_after_use
+  BEFORE UPDATE OR DELETE ON finance_rule_version
+  FOR EACH ROW EXECUTE FUNCTION reject_referenced_finance_rule_version_mutation();

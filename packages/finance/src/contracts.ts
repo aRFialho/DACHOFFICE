@@ -62,7 +62,7 @@ export function assertMoney(value: unknown, field: string): Money {
     throw new Error(`${field} must be a decimal string`);
   }
 
-  const [integerPart, fractionalPart] = value.replace("-", "").split(".");
+  const [integerPart = "", fractionalPart] = value.replace("-", "").split(".");
   if (integerPart.length > MAX_INTEGER_DIGITS) {
     throw new Error(`${field} must fit numeric(19,4)`);
   }
