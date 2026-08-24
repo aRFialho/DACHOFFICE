@@ -12,6 +12,10 @@
       "types": "./dist/classification.d.ts",
       "default": "./dist/classification.js"
     },
+    "./contribution-margin": {
+      "types": "./dist/contribution-margin.d.ts",
+      "default": "./dist/contribution-margin.js"
+    },
     "./postgres-financial-component-repository": {
       "types": "./dist/postgres-financial-component-repository.d.ts",
       "default": "./dist/postgres-financial-component-repository.js"
