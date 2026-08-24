@@ -2,10 +2,14 @@
 
 ## Status
 
-Sprint 5 local implementation, migration 006 deployment, and post-migration
-health validation are complete. Connected marketplace/provider staging
-validation has **not** been performed. It remains a separate release gate;
-this document does not claim it has passed.
+Sprint 5 local implementation and accepted task reviews are complete. On
+2026-08-24, the primary agent independently ran `scripts/db-migrate.mjs` from
+the Sprint 5 worktree with the repository root environment configuration and
+observed `Applied migration 006_finance_margin.sql`; it then ran
+`scripts/db-health.mjs` and observed health passed. The database deployment
+gate is complete. Connected marketplace/provider staging validation has **not**
+been performed. It remains a separate release gate; this document does not
+claim it has passed.
 
 ## Financial domain and DRE
 
@@ -96,9 +100,17 @@ marketplace, provider, integration, worker, or Action Executor.
 
 ## Migration 006 release record
 
-Migration 006 was applied by the primary release operator, and the required
-post-migration health validation passed. The migration is additive, but it
-creates durable financial evidence and can be referenced by downstream data.
+On 2026-08-24, the primary agent independently executed
+`scripts/db-migrate.mjs` from the Sprint 5 worktree using the repository root
+environment configuration. The observed migration result was
+`Applied migration 006_finance_margin.sql`. The immediately following
+independent `scripts/db-health.mjs` check observed a passing health result.
+This is the deployment and postflight evidence for the database gate; it does
+not include a connection value, secret, environment value, or raw financial
+evidence.
+
+Migration 006 is additive, but it creates durable financial evidence and can
+be referenced by downstream data.
 Operational records must not include a connection string, secret, environment
 value, or raw financial evidence.
 
@@ -122,7 +134,7 @@ schema or financial evidence already in use.
 | Office-scoped admin reads/configuration and retries                    | `apps/api/src/modules/finance/`; finance repository, route, configuration, and concurrent-retry tests (Task 4 re-review accepted).                                                                                   |
 | Authorized semantic finance reads                                      | `apps/api/src/modules/finance/finance-tools.ts`; policy context office binding and `finance-tools-office-scope.test.ts` (Task 4 re-review accepted).                                                                 |
 | Local release quality                                                  | Task records report finance/API/workspace tests and typechecks, Prettier, and `git diff --check` passing at their respective accepted revisions.                                                                     |
-| Database deployment                                                    | Migration 006 applied and post-migration health validation passed by the primary release operator.                                                                                                                   |
+| Database deployment                                                    | 2026-08-24 primary-agent evidence: `scripts/db-migrate.mjs` observed `Applied migration 006_finance_margin.sql`; immediately following `scripts/db-health.mjs` observed health passed.                               |
 
 ## Deferred staging acceptance
 
