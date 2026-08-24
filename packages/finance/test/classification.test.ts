@@ -3,6 +3,10 @@ import {
   classifyActualFinancialEvidence,
   selectEstimatedFeeRules,
 } from "../src/classification.js";
+import {
+  assertFinanceRuleVersion,
+  parseFinanceRuleMappings,
+} from "../src/contracts.js";
 import type {
   ActualFinancialEvidence,
   ChannelFeeRule,
@@ -98,6 +102,32 @@ describe("versioned financial component classification", () => {
     });
   });
 
+  it("accepts default rules_json and retains unknown evidence as REAL other/unknown", () => {
+    expect(parseFinanceRuleMappings({})).toEqual({});
+    const emptyRuleVersion = assertFinanceRuleVersion({
+      id: "rule-version-empty",
+      officeId: "office-1",
+      ruleSetId: "rule-set-1",
+      version: 3,
+      rulesJson: {},
+    });
+
+    expect(
+      classifyActualFinancialEvidence(emptyRuleVersion, {
+        ...actualEvidence,
+        rawCode: "provider_new_fee",
+      }),
+    ).toEqual({
+      amount: "12.5000",
+      currency: "BRL",
+      componentType: "other",
+      payer: "unknown",
+      source: "marketplace.order_fees",
+      rawCode: "provider_new_fee",
+      sourceReference: "fee-17",
+      confidence: "REAL",
+    });
+  });
   it("selects only applicable estimated rules and suppresses a real equivalent", () => {
     const actualComponents: readonly ClassifiedFinancialComponent[] = [
       classifyActualFinancialEvidence(ruleVersion, actualEvidence),

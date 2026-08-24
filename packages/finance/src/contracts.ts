@@ -158,6 +158,22 @@ export function assertFinancialComponent(value: unknown): FinancialComponent {
 export function assertFinanceRuleVersion(value: unknown): FinanceRuleVersion {
   const version = assertRecord(value, "finance rule version");
   const rulesJson = assertRecord(version.rulesJson, "rulesJson");
+  const parsedMappings = parseFinanceRuleMappings(rulesJson);
+  return {
+    id: assertNonBlankString(version.id, "id"),
+    officeId: assertNonBlankString(version.officeId, "officeId"),
+    ruleSetId: assertNonBlankString(version.ruleSetId, "ruleSetId"),
+    version: assertPositiveInteger(version.version, "version"),
+    rulesJson: { rawCodeMappings: parsedMappings },
+  };
+}
+
+export function parseFinanceRuleMappings(
+  value: unknown,
+): Record<string, RawCodeMapping> {
+  const rulesJson = assertRecord(value, "rulesJson");
+  if (rulesJson.rawCodeMappings === undefined) return {};
+
   const rawCodeMappings = assertRecord(
     rulesJson.rawCodeMappings,
     "rulesJson.rawCodeMappings",
@@ -174,15 +190,8 @@ export function assertFinanceRuleVersion(value: unknown): FinanceRuleVersion {
       payer: assertComponentPayer(parsedMapping.payer),
     };
   }
-  return {
-    id: assertNonBlankString(version.id, "id"),
-    officeId: assertNonBlankString(version.officeId, "officeId"),
-    ruleSetId: assertNonBlankString(version.ruleSetId, "ruleSetId"),
-    version: assertPositiveInteger(version.version, "version"),
-    rulesJson: { rawCodeMappings: parsedMappings },
-  };
+  return parsedMappings;
 }
-
 export function assertChannelFeeRule(value: unknown): ChannelFeeRule {
   const rule = assertRecord(value, "channel fee rule");
   const feeMode = assertMember(
