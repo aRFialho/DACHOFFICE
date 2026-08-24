@@ -3,7 +3,13 @@ import type {
   ChannelFeeRule,
   ClassifiedFinancialComponent,
   FinanceRuleVersion,
+  Money,
 } from "./contracts.js";
+import { percentageOfMoney, toMoney, toScaled } from "./decimal.js";
+
+export interface MaterializedEstimatedFeeComponent extends ClassifiedFinancialComponent {
+  componentId: string;
+}
 
 export function classifyActualFinancialEvidence(
   ruleVersion: FinanceRuleVersion,
@@ -46,6 +52,44 @@ export function selectEstimatedFeeRules(input: {
   );
 }
 
+export function materializeEstimatedFeeComponents(input: {
+  ruleVersion: FinanceRuleVersion;
+  feeRules: readonly ChannelFeeRule[];
+  channel: string;
+  occurredAt: Date;
+  selectedRevenue: { amount: Money; currency: string };
+  actualComponents: readonly ClassifiedFinancialComponent[];
+}): readonly MaterializedEstimatedFeeComponent[] {
+  const selectedRevenueCurrency = assertCurrency(
+    input.selectedRevenue.currency,
+    "selectedRevenue.currency",
+  );
+  return selectEstimatedFeeRules(input).map((rule) => {
+    const currency =
+      rule.feeMode === "fixed"
+        ? assertCurrency(rule.currency, "fixed fee rule currency")
+        : selectedRevenueCurrency;
+    const amount =
+      rule.feeMode === "fixed"
+        ? toMoney(toScaled(rule.value), `fixed fee rule ${rule.id} value`)
+        : percentageOfMoney(
+            input.selectedRevenue.amount,
+            rule.value,
+            `percentage fee rule ${rule.id} value`,
+          );
+    return {
+      componentId: `estimated-fee-rule:${rule.id}`,
+      amount,
+      currency,
+      componentType: rule.componentType,
+      payer: rule.payer,
+      source: rule.source,
+      ...optionalField(rule.rawCode, "rawCode"),
+      confidence: "ESTIMATED",
+    };
+  });
+}
+
 function isValidAt(rule: ChannelFeeRule, occurredAt: Date): boolean {
   return (
     (rule.validFrom === undefined || rule.validFrom <= occurredAt) &&
@@ -55,6 +99,12 @@ function isValidAt(rule: ChannelFeeRule, occurredAt: Date): boolean {
 
 function componentKey(componentType: string, payer: string): string {
   return `${componentType}:${payer}`;
+}
+
+function assertCurrency(value: unknown, field: string): string {
+  if (typeof value !== "string" || !/^[A-Z]{3}$/.test(value))
+    throw new Error(`${field} must be a three-letter uppercase currency`);
+  return value;
 }
 
 function optionalField<K extends string>(

@@ -1,10 +1,18 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const migration = readFileSync(
   resolve(import.meta.dirname, "../../../db/migrations/006_finance_margin.sql"),
   "utf8",
+);
+const migrationDirectory = resolve(
+  import.meta.dirname,
+  "../../../db/migrations",
+);
+const forwardMigrationPath = resolve(
+  migrationDirectory,
+  "007_finance_rule_invariants.sql",
 );
 
 describe("finance margin migration", () => {
@@ -87,6 +95,47 @@ describe("finance margin migration", () => {
     );
     expect(migration).toMatch(
       /IF TG_OP <> 'DELETE' AND EXISTS \([\s\S]*?FROM order_margin_snapshot[\s\S]*?finance_rule_version_id = NEW.finance_rule_version_id[\s\S]*?office_id = NEW.office_id[\s\S]*?\) THEN[\s\S]*?RAISE EXCEPTION 'channel_fee_rule is immutable after finance rule version use';/,
+    );
+  });
+
+  it("adds migration 007 after migration 006", () => {
+    expect(existsSync(forwardMigrationPath)).toBe(true);
+    if (!existsSync(forwardMigrationPath)) return;
+
+    const migrations = readdirSync(migrationDirectory).sort();
+    expect(migrations.indexOf("006_finance_margin.sql")).toBeLessThan(
+      migrations.indexOf("007_finance_rule_invariants.sql"),
+    );
+  });
+
+  it("preflights incompatible configured fee-rule rows before adding invariants", () => {
+    expect(existsSync(forwardMigrationPath)).toBe(true);
+    if (!existsSync(forwardMigrationPath)) return;
+
+    const forwardMigration = readFileSync(forwardMigrationPath, "utf8");
+    expect(forwardMigration).toMatch(
+      /DO \$\$[\s\S]*?FROM channel_fee_rule[\s\S]*?confidence <> 'ESTIMATED'[\s\S]*?RAISE EXCEPTION 'channel_fee_rule contains rows incompatible with finance rule invariants';[\s\S]*?\$\$;/,
+    );
+  });
+
+  it("enforces configured fee-rule confidence as ESTIMATED", () => {
+    expect(existsSync(forwardMigrationPath)).toBe(true);
+    if (!existsSync(forwardMigrationPath)) return;
+
+    const forwardMigration = readFileSync(forwardMigrationPath, "utf8");
+    expect(forwardMigration).toContain("CHECK (confidence = 'ESTIMATED')");
+  });
+
+  it("enforces no percentage currency and a three-letter fixed currency", () => {
+    expect(existsSync(forwardMigrationPath)).toBe(true);
+    if (!existsSync(forwardMigrationPath)) return;
+
+    const forwardMigration = readFileSync(forwardMigrationPath, "utf8");
+    expect(forwardMigration).toContain(
+      "(fee_mode = 'percentage' AND currency IS NULL)",
+    );
+    expect(forwardMigration).toContain(
+      "(fee_mode = 'fixed' AND currency ~ '^[A-Z]{3}$')",
     );
   });
 });
