@@ -121,7 +121,9 @@ CREATE TABLE IF NOT EXISTS order_financial_component (
   raw_code text,
   source_reference text,
   confidence text NOT NULL CHECK (confidence IN ('REAL', 'ESTIMATED')),
+  idempotency_key text NOT NULL CHECK (char_length(btrim(idempotency_key)) BETWEEN 1 AND 200),
   created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (office_id, idempotency_key),
   FOREIGN KEY (order_header_id, office_id)
     REFERENCES order_header(id, office_id) ON DELETE CASCADE,
   FOREIGN KEY (order_item_id, order_header_id, office_id)

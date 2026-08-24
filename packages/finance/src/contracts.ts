@@ -22,12 +22,54 @@ export const COMPONENT_PAYERS = [
 ] as const;
 
 export const COMPONENT_CONFIDENCES = ["REAL", "ESTIMATED"] as const;
+export const CHANNEL_FEE_MODES = ["percentage", "fixed"] as const;
 
 export type Money = string & { readonly __brand: "Money" };
 export type RevenueBasis = string & { readonly __brand: "RevenueBasis" };
 export type FinancialComponentType = (typeof FINANCIAL_COMPONENT_TYPES)[number];
 export type ComponentPayer = (typeof COMPONENT_PAYERS)[number];
 export type ComponentConfidence = (typeof COMPONENT_CONFIDENCES)[number];
+export type ChannelFeeMode = (typeof CHANNEL_FEE_MODES)[number];
+export type IdempotencyKey = string & { readonly __brand: "IdempotencyKey" };
+
+export interface RawCodeMapping {
+  componentType: FinancialComponentType;
+  payer: ComponentPayer;
+}
+
+export interface FinanceRuleVersion {
+  id: string;
+  officeId: string;
+  ruleSetId: string;
+  version: number;
+  rulesJson: { rawCodeMappings: Record<string, RawCodeMapping> };
+}
+
+export interface ChannelFeeRule {
+  id: string;
+  officeId: string;
+  financeRuleVersionId: string;
+  channel: string;
+  componentType: FinancialComponentType;
+  payer: ComponentPayer;
+  feeMode: ChannelFeeMode;
+  value: Money;
+  currency?: string;
+  source: string;
+  rawCode?: string;
+  confidence: "ESTIMATED";
+  validFrom?: Date;
+  validTo?: Date;
+}
+
+export interface ActualFinancialEvidence {
+  amount: Money;
+  currency: string;
+  source: string;
+  rawCode: string;
+  sourceReference?: string;
+  orderItemId?: string;
+}
 
 export interface FinancialComponent {
   amount: Money;
@@ -37,6 +79,18 @@ export interface FinancialComponent {
   rawCode?: string;
   confidence: ComponentConfidence;
   orderItemId?: string;
+}
+
+export interface ClassifiedFinancialComponent extends FinancialComponent {
+  currency: string;
+  sourceReference?: string;
+}
+
+export interface PersistFinancialComponentInput {
+  officeId: string;
+  orderHeaderId: string;
+  idempotencyKey: IdempotencyKey;
+  component: ClassifiedFinancialComponent;
 }
 
 const DECIMAL_PATTERN = /^-?(?:0|[1-9]\d*)(?:\.\d+)?$/;
@@ -93,8 +147,134 @@ export function assertFinancialComponent(value: unknown): FinancialComponent {
     source: assertNonBlankString(component.source, "source"),
     ...optionalNonBlankString(component.rawCode, "rawCode", "rawCode"),
     confidence: assertComponentConfidence(component.confidence),
-    ...optionalNonBlankString(component.orderItemId, "orderItemId", "orderItemId"),
+    ...optionalNonBlankString(
+      component.orderItemId,
+      "orderItemId",
+      "orderItemId",
+    ),
   };
+}
+
+export function assertFinanceRuleVersion(value: unknown): FinanceRuleVersion {
+  const version = assertRecord(value, "finance rule version");
+  const rulesJson = assertRecord(version.rulesJson, "rulesJson");
+  const rawCodeMappings = assertRecord(
+    rulesJson.rawCodeMappings,
+    "rulesJson.rawCodeMappings",
+  );
+  const parsedMappings: Record<string, RawCodeMapping> = {};
+  for (const [rawCode, mapping] of Object.entries(rawCodeMappings)) {
+    assertNonBlankString(rawCode, "rulesJson.rawCodeMappings key");
+    const parsedMapping = assertRecord(
+      mapping,
+      `rulesJson.rawCodeMappings.${rawCode}`,
+    );
+    parsedMappings[rawCode] = {
+      componentType: assertFinancialComponentType(parsedMapping.componentType),
+      payer: assertComponentPayer(parsedMapping.payer),
+    };
+  }
+  return {
+    id: assertNonBlankString(version.id, "id"),
+    officeId: assertNonBlankString(version.officeId, "officeId"),
+    ruleSetId: assertNonBlankString(version.ruleSetId, "ruleSetId"),
+    version: assertPositiveInteger(version.version, "version"),
+    rulesJson: { rawCodeMappings: parsedMappings },
+  };
+}
+
+export function assertChannelFeeRule(value: unknown): ChannelFeeRule {
+  const rule = assertRecord(value, "channel fee rule");
+  const feeMode = assertMember(
+    rule.feeMode,
+    CHANNEL_FEE_MODES,
+    "feeMode must be percentage or fixed",
+  );
+  const currency = optionalCurrency(rule.currency, "currency");
+  const validFrom = optionalDate(rule.validFrom, "validFrom");
+  const validTo = optionalDate(rule.validTo, "validTo");
+  if (feeMode === "percentage" && currency !== undefined)
+    throw new Error("percentage fee rules must not have currency");
+  if (feeMode === "fixed" && currency === undefined)
+    throw new Error("fixed fee rules must have currency");
+  if (validFrom !== undefined && validTo !== undefined && validTo < validFrom)
+    throw new Error("validTo must not be before validFrom");
+  if (rule.confidence !== "ESTIMATED")
+    throw new Error("configured fee rules must be ESTIMATED");
+  return {
+    id: assertNonBlankString(rule.id, "id"),
+    officeId: assertNonBlankString(rule.officeId, "officeId"),
+    financeRuleVersionId: assertNonBlankString(
+      rule.financeRuleVersionId,
+      "financeRuleVersionId",
+    ),
+    channel: assertNonBlankString(rule.channel, "channel"),
+    componentType: assertFinancialComponentType(rule.componentType),
+    payer: assertComponentPayer(rule.payer),
+    feeMode,
+    value: assertMoney(rule.value, "value"),
+    ...optionalField(currency, "currency"),
+    source: assertNonBlankString(rule.source, "source"),
+    ...optionalField(
+      optionalNonBlankStringValue(rule.rawCode, "rawCode"),
+      "rawCode",
+    ),
+    confidence: "ESTIMATED",
+    ...optionalField(validFrom, "validFrom"),
+    ...optionalField(validTo, "validTo"),
+  };
+}
+export function assertActualFinancialEvidence(
+  value: unknown,
+): ActualFinancialEvidence {
+  const evidence = assertRecord(value, "actual financial evidence");
+  return {
+    amount: assertMoney(evidence.amount, "amount"),
+    currency: assertCurrency(evidence.currency, "currency"),
+    source: assertNonBlankString(evidence.source, "source"),
+    rawCode: assertNonBlankString(evidence.rawCode, "rawCode"),
+    ...optionalField(
+      optionalNonBlankStringValue(evidence.sourceReference, "sourceReference"),
+      "sourceReference",
+    ),
+    ...optionalField(
+      optionalNonBlankStringValue(evidence.orderItemId, "orderItemId"),
+      "orderItemId",
+    ),
+  };
+}
+
+export function assertClassifiedFinancialComponent(
+  value: unknown,
+): ClassifiedFinancialComponent {
+  const component = assertRecord(value, "classified financial component");
+  return {
+    ...assertFinancialComponent(component),
+    currency: assertCurrency(component.currency, "currency"),
+    ...optionalField(
+      optionalNonBlankStringValue(component.sourceReference, "sourceReference"),
+      "sourceReference",
+    ),
+  };
+}
+
+export function assertPersistFinancialComponentInput(
+  value: unknown,
+): PersistFinancialComponentInput {
+  const input = assertRecord(value, "persist financial component input");
+  return {
+    officeId: assertNonBlankString(input.officeId, "officeId"),
+    orderHeaderId: assertNonBlankString(input.orderHeaderId, "orderHeaderId"),
+    idempotencyKey: assertIdempotencyKey(input.idempotencyKey),
+    component: assertClassifiedFinancialComponent(input.component),
+  };
+}
+
+export function assertIdempotencyKey(value: unknown): IdempotencyKey {
+  const idempotencyKey = assertNonBlankString(value, "idempotencyKey");
+  if (idempotencyKey.length > 200)
+    throw new Error("idempotencyKey must be at most 200 characters");
+  return idempotencyKey as IdempotencyKey;
 }
 
 export function assertFinancialComponentType(
@@ -137,6 +317,46 @@ function assertNonBlankString(value: unknown, field: string): string {
   }
 
   return value;
+}
+
+function assertPositiveInteger(value: unknown, field: string): number {
+  if (typeof value !== "number" || !Number.isInteger(value) || value <= 0)
+    throw new Error(`${field} must be a positive integer`);
+  return value;
+}
+
+function assertCurrency(value: unknown, field: string): string {
+  if (typeof value !== "string" || !/^[A-Z]{3}$/.test(value))
+    throw new Error(`${field} must be a three-letter uppercase currency`);
+  return value;
+}
+
+function optionalCurrency(value: unknown, field: string): string | undefined {
+  return value === undefined || value === null
+    ? undefined
+    : assertCurrency(value, field);
+}
+
+function optionalDate(value: unknown, field: string): Date | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (!(value instanceof Date) || Number.isNaN(value.valueOf()))
+    throw new Error(`${field} must be a valid Date`);
+  return value;
+}
+function optionalNonBlankStringValue(
+  value: unknown,
+  field: string,
+): string | undefined {
+  return value === undefined || value === null
+    ? undefined
+    : assertNonBlankString(value, field);
+}
+
+function optionalField<K extends string, T>(
+  value: T | undefined,
+  key: K,
+): { [P in K]?: T } {
+  return value === undefined ? {} : ({ [key]: value } as { [P in K]?: T });
 }
 
 function optionalNonBlankString(

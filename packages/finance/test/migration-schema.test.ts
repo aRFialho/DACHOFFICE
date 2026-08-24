@@ -33,6 +33,12 @@ describe("finance margin migration", () => {
     );
   });
 
+  it("uses a nonblank office-scoped idempotency key for component persistence", () => {
+    expect(migration).toMatch(
+      /CREATE TABLE IF NOT EXISTS order_financial_component[\s\S]*?idempotency_key text NOT NULL CHECK \(char_length\(btrim\(idempotency_key\)\) BETWEEN 1 AND 200\)[\s\S]*?UNIQUE \(office_id, idempotency_key\)/,
+    );
+  });
+
   it("stores append-only margin evidence with revenue basis and rule provenance", () => {
     expect(migration).toMatch(
       /CREATE TABLE IF NOT EXISTS order_margin_snapshot[\s\S]*?order_header_id uuid NOT NULL[\s\S]*?finance_rule_version_id uuid NOT NULL[\s\S]*?revenue_basis text NOT NULL[\s\S]*?contribution_amount_numeric numeric\(19,4\) NOT NULL[\s\S]*?contribution_percent_numeric numeric\(19,4\) NOT NULL[\s\S]*?evidence_json jsonb NOT NULL/,

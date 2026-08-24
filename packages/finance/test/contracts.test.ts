@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  assertActualFinancialEvidence,
+  assertChannelFeeRule,
+  assertFinanceRuleVersion,
+  assertIdempotencyKey,
   assertFinancialComponent,
   assertMoney,
   assertRevenueBasis,
@@ -86,5 +90,89 @@ describe("finance contracts", () => {
     expect(() => assertRevenueBasis("   ", "revenueBasis")).toThrow(
       "revenueBasis must be a non-blank string",
     );
+  });
+
+  it("accepts a versioned raw-code mapping and direct financial evidence", () => {
+    expect(
+      assertFinanceRuleVersion({
+        id: "rule-version-1",
+        officeId: "office-1",
+        ruleSetId: "rule-set-1",
+        version: 2,
+        rulesJson: {
+          rawCodeMappings: {
+            sale_fee: {
+              componentType: "marketplace_commission",
+              payer: "marketplace",
+            },
+          },
+        },
+      }),
+    ).toMatchObject({
+      id: "rule-version-1",
+      version: 2,
+      rulesJson: {
+        rawCodeMappings: {
+          sale_fee: {
+            componentType: "marketplace_commission",
+            payer: "marketplace",
+          },
+        },
+      },
+    });
+    expect(
+      assertActualFinancialEvidence({
+        amount: "12.5000",
+        currency: "BRL",
+        source: "marketplace.order_fees",
+        rawCode: "sale_fee",
+        sourceReference: "fee-17",
+      }),
+    ).toMatchObject({ rawCode: "sale_fee", sourceReference: "fee-17" });
+  });
+
+  it("rejects an idempotency key outside the persisted component boundary", () => {
+    expect(assertIdempotencyKey("component:order-1:fee-17")).toBe(
+      "component:order-1:fee-17",
+    );
+    expect(() => assertIdempotencyKey("   ")).toThrow(
+      "idempotencyKey must be a non-blank string",
+    );
+    expect(() => assertIdempotencyKey("x".repeat(201))).toThrow(
+      "idempotencyKey must be at most 200 characters",
+    );
+  });
+  it("accepts only estimated channel fee rules with valid matching fields", () => {
+    expect(
+      assertChannelFeeRule({
+        id: "fee-1",
+        officeId: "office-1",
+        financeRuleVersionId: "rule-version-1",
+        channel: "marketplace",
+        componentType: "fixed_fee",
+        payer: "seller",
+        feeMode: "fixed",
+        value: "6.00",
+        currency: "BRL",
+        source: "configured.marketplace",
+        confidence: "ESTIMATED",
+        validFrom: new Date("2026-01-01T00:00:00.000Z"),
+      }),
+    ).toMatchObject({ feeMode: "fixed", confidence: "ESTIMATED" });
+    expect(() =>
+      assertChannelFeeRule({
+        id: "fee-1",
+        officeId: "office-1",
+        financeRuleVersionId: "rule-version-1",
+        channel: "marketplace",
+        componentType: "fixed_fee",
+        payer: "seller",
+        feeMode: "fixed",
+        value: "6.00",
+        currency: "BRL",
+        source: "configured.marketplace",
+        confidence: "REAL",
+      }),
+    ).toThrow("configured fee rules must be ESTIMATED");
   });
 });
