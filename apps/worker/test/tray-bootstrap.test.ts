@@ -13,6 +13,7 @@ const environment = {
   TRAY_BOOTSTRAP_AUTHORIZATION_CODE: "authorization-code",
   TRAY_BOOTSTRAP_OFFICE_ID: "11111111-1111-4111-8111-111111111111",
   TRAY_BOOTSTRAP_INTEGRATION_ID: "22222222-2222-4222-8222-222222222222",
+  TRAY_BOOTSTRAP_API_ADDRESS: "https://store.example.tray.com.br/web_api",
   TRAY_TOKEN_ENCRYPTION_KEY: testKey,
 };
 
@@ -27,13 +28,20 @@ const successResponse = () =>
     { status: 200, headers: { "content-type": "application/json" } },
   );
 
+const repositoryWith = (
+  persist: (input: unknown) => Promise<{ outcome: "created" | "unchanged" }>,
+) => ({
+  bootstrap: async (_target: unknown, exchange: () => Promise<unknown>) =>
+    persist(await exchange()),
+});
+
 it("exchanges a controlled authorization code then persists encrypted material atomically", async () => {
   const persist = vi.fn(async () => ({ outcome: "created" as const }));
   const fetch = vi.fn(async () => successResponse());
   const bootstrap = new TrayConnectionBootstrap({
     environment,
     fetch,
-    repository: { persist },
+    repository: repositoryWith(persist),
     now: () => new Date("2026-08-24T00:00:00.000Z"),
   });
 
@@ -57,7 +65,7 @@ it("is idempotent when the connection has already been bootstrapped", async () =
   const bootstrap = new TrayConnectionBootstrap({
     environment,
     fetch: async () => successResponse(),
-    repository: { persist },
+    repository: repositoryWith(persist),
   });
 
   await expect(bootstrap.run()).resolves.toEqual({ outcome: "unchanged" });
@@ -70,7 +78,7 @@ it("skips the one-time code exchange when a connection exists", async () => {
   const bootstrap = new TrayConnectionBootstrap({
     environment,
     fetch,
-    repository: { hasConnection: async () => true, persist },
+    repository: { bootstrap: async () => ({ outcome: "unchanged" as const }) },
   });
 
   await expect(bootstrap.run()).resolves.toEqual({ outcome: "unchanged" });
@@ -92,7 +100,7 @@ it("rejects malformed provider responses without persistence or secret leakage",
         }),
         { status: 200 },
       ),
-    repository: { persist },
+    repository: repositoryWith(persist),
   });
 
   await expect(bootstrap.run()).rejects.toEqual(
@@ -120,7 +128,7 @@ it("bounds a hung exchange and returns a redacted timeout code", async () => {
           { once: true },
         );
       }),
-    repository: { persist: async () => ({ outcome: "created" as const }) },
+    repository: repositoryWith(async () => ({ outcome: "created" as const })),
     timeoutMs: 100,
   });
 
@@ -141,7 +149,7 @@ it("requires an explicit server-side bootstrap invocation", async () => {
   const bootstrap = new TrayConnectionBootstrap({
     environment: { ...environment, TRAY_BOOTSTRAP_ENABLED: "false" },
     fetch: async () => successResponse(),
-    repository: { persist: async () => ({ outcome: "created" as const }) },
+    repository: repositoryWith(async () => ({ outcome: "created" as const })),
   });
 
   await expect(bootstrap.run()).rejects.toEqual(
@@ -153,7 +161,7 @@ it("requires an explicit office and integration selection", async () => {
   const bootstrap = new TrayConnectionBootstrap({
     environment: { ...environment, TRAY_BOOTSTRAP_OFFICE_ID: undefined },
     fetch: async () => successResponse(),
-    repository: { persist: async () => ({ outcome: "created" as const }) },
+    repository: repositoryWith(async () => ({ outcome: "created" as const })),
   });
 
   await expect(bootstrap.run()).rejects.toEqual(

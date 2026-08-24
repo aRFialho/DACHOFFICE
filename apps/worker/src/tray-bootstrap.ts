@@ -17,17 +17,19 @@ type TokenResponse = {
 
 type BootstrapTarget = { officeId: string; integrationId: string };
 
+type BootstrapConnection = {
+  apiAddress: string;
+  storeId: string;
+  accessToken: EncryptedTrayToken;
+  refreshToken: EncryptedTrayToken;
+  accessTokenExpiresAt: Date;
+};
+
 export type TrayBootstrapPersistence = {
-  hasConnection?(input: BootstrapTarget): Promise<boolean>;
-  persist(input: {
-    officeId: string;
-    integrationId: string;
-    apiAddress: string;
-    storeId: string;
-    accessToken: EncryptedTrayToken;
-    refreshToken: EncryptedTrayToken;
-    accessTokenExpiresAt: Date;
-  }): Promise<{ outcome: "created" | "unchanged" }>;
+  bootstrap(
+    target: BootstrapTarget,
+    exchange: () => Promise<BootstrapConnection>,
+  ): Promise<{ outcome: "created" | "unchanged" }>;
 };
 
 export class TrayBootstrapError extends Error {
@@ -62,20 +64,17 @@ export class TrayConnectionBootstrap {
       officeId: configuration.officeId,
       integrationId: configuration.integrationId,
     };
-    if (await this.options.repository.hasConnection?.(target)) {
-      return { outcome: "unchanged" };
-    }
-
-    const token = await this.exchange(configuration);
-    return this.options.repository.persist({
-      ...target,
-      apiAddress: token.apiAddress,
-      // Tray's OAuth response has no stable store ID. api_address is the
-      // validated, provider-issued store-scoped identifier used by this schema.
-      storeId: token.apiAddress,
-      accessToken: encrypt(token.accessToken, configuration.encryptionKey),
-      refreshToken: encrypt(token.refreshToken, configuration.encryptionKey),
-      accessTokenExpiresAt: token.accessTokenExpiresAt,
+    return this.options.repository.bootstrap(target, async () => {
+      const token = await this.exchange(configuration);
+      return {
+        apiAddress: token.apiAddress,
+        // Tray's OAuth response has no stable store ID. api_address is the
+        // validated, provider-issued store-scoped identifier used by this schema.
+        storeId: token.apiAddress,
+        accessToken: encrypt(token.accessToken, configuration.encryptionKey),
+        refreshToken: encrypt(token.refreshToken, configuration.encryptionKey),
+        accessTokenExpiresAt: token.accessTokenExpiresAt,
+      };
     });
   }
 
@@ -84,7 +83,7 @@ export class TrayConnectionBootstrap {
     clientSecret: string;
     authorizationCode: string;
     encryptionKey: Buffer;
-    expectedApiAddress: string | undefined;
+    expectedApiAddress: string;
   }): Promise<{
     accessToken: string;
     refreshToken: string;
@@ -124,10 +123,7 @@ export class TrayConnectionBootstrap {
         body,
         this.options.now?.() ?? new Date(),
       );
-      if (
-        configuration.expectedApiAddress &&
-        token.apiAddress !== configuration.expectedApiAddress
-      ) {
+      if (token.apiAddress !== configuration.expectedApiAddress) {
         throw new TrayBootstrapError("tray_bootstrap_response_invalid");
       }
       return token;
@@ -174,7 +170,7 @@ function readConfiguration(environment: BootstrapEnvironment): {
   encryptionKey: Buffer;
   officeId: string;
   integrationId: string;
-  expectedApiAddress: string | undefined;
+  expectedApiAddress: string;
 } {
   if (environment.TRAY_BOOTSTRAP_ENABLED !== "true") {
     throw new TrayBootstrapError("tray_bootstrap_not_enabled");
@@ -193,8 +189,11 @@ function readConfiguration(environment: BootstrapEnvironment): {
     environment,
     "TRAY_BOOTSTRAP_INTEGRATION_ID",
   );
-  const expectedApiAddress = environment.TRAY_BOOTSTRAP_API_ADDRESS?.trim();
-  if (expectedApiAddress && !validApiAddress(expectedApiAddress))
+  const expectedApiAddress = required(
+    environment,
+    "TRAY_BOOTSTRAP_API_ADDRESS",
+  );
+  if (!validApiAddress(expectedApiAddress))
     throw new TrayBootstrapError("tray_bootstrap_configuration_invalid");
   return {
     clientId,
@@ -242,7 +241,7 @@ function decodeEncryptionKey(value: string): Buffer {
 }
 
 function parseTokenResponse(
-  value: TokenResponse,
+  value: unknown,
   now: Date,
 ): {
   accessToken: string;
@@ -251,6 +250,7 @@ function parseTokenResponse(
   accessTokenExpiresAt: Date;
 } {
   if (
+    !isTokenResponseObject(value) ||
     !nonBlank(value.access_token) ||
     !nonBlank(value.refresh_token) ||
     !validExpiry(value.expires_in) ||
@@ -264,6 +264,15 @@ function parseTokenResponse(
     apiAddress: value.api_address,
     accessTokenExpiresAt: new Date(now.getTime() + value.expires_in * 1_000),
   };
+}
+
+function isTokenResponseObject(value: unknown): value is TokenResponse {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    !Array.isArray(value) &&
+    Object.getPrototypeOf(value) === Object.prototype
+  );
 }
 
 function nonBlank(value: unknown): value is string {
@@ -280,14 +289,20 @@ function validExpiry(value: unknown): value is number {
 }
 
 function validApiAddress(value: unknown): value is string {
-  if (!nonBlank(value) || value.length > 2_048) return false;
+  if (!nonBlank(value) || value !== value.trim() || value.length > 2_048)
+    return false;
   try {
     const url = new URL(value);
     return (
       url.protocol === "https:" &&
       url.username === "" &&
       url.password === "" &&
-      url.pathname.length > 1
+      url.port === "" &&
+      url.hostname.endsWith(".tray.com.br") &&
+      url.hostname !== "tray.com.br" &&
+      url.pathname === "/web_api" &&
+      url.search === "" &&
+      url.hash === ""
     );
   } catch {
     return false;

@@ -1,25 +1,16 @@
 import type { Pool } from "pg";
-import type { TrayBootstrapPersistence } from "./tray-bootstrap.js";
+import {
+  TrayBootstrapError,
+  type TrayBootstrapPersistence,
+} from "./tray-bootstrap.js";
 
 export class PostgresTrayBootstrapRepository implements TrayBootstrapPersistence {
   constructor(private readonly pool: Pool) {}
 
-  async hasConnection(input: {
-    officeId: string;
-    integrationId: string;
-  }): Promise<boolean> {
-    const result = await this.pool.query(
-      `SELECT 1
-       FROM tray_store_connection connection
-       JOIN integration i ON i.id = connection.integration_id
-       WHERE i.office_id = $1 AND i.id = $2
-         AND i.type = 'tray' AND i.status = 'active'`,
-      [input.officeId, input.integrationId],
-    );
-    return (result.rowCount ?? 0) > 0;
-  }
-
-  async persist(input: Parameters<TrayBootstrapPersistence["persist"]>[0]) {
+  async bootstrap(
+    target: Parameters<TrayBootstrapPersistence["bootstrap"]>[0],
+    exchange: Parameters<TrayBootstrapPersistence["bootstrap"]>[1],
+  ) {
     const client = await this.pool.connect();
     try {
       await client.query("BEGIN");
@@ -28,11 +19,11 @@ export class PostgresTrayBootstrapRepository implements TrayBootstrapPersistence
          WHERE office_id = $1 AND id = $2
            AND type = 'tray' AND status = 'active'
          FOR UPDATE`,
-        [input.officeId, input.integrationId],
+        [target.officeId, target.integrationId],
       );
       const integrationId = integration.rows[0]?.id;
       if (!integrationId) {
-        throw new Error("tray_bootstrap_connection_unavailable");
+        throw new TrayBootstrapError("tray_bootstrap_connection_unavailable");
       }
       const existing = await client.query(
         `SELECT 1 FROM tray_store_connection WHERE integration_id = $1`,
@@ -42,6 +33,7 @@ export class PostgresTrayBootstrapRepository implements TrayBootstrapPersistence
         await client.query("COMMIT");
         return { outcome: "unchanged" as const };
       }
+      const input = await exchange();
       await client.query(
         `INSERT INTO tray_store_connection (
           integration_id, store_id, api_address,
@@ -66,10 +58,7 @@ export class PostgresTrayBootstrapRepository implements TrayBootstrapPersistence
       return { outcome: "created" as const };
     } catch (error) {
       await client.query("ROLLBACK");
-      if (
-        error instanceof Error &&
-        error.message === "tray_bootstrap_connection_unavailable"
-      ) {
+      if (error instanceof TrayBootstrapError) {
         throw error;
       }
       throw new Error("tray_bootstrap_persistence_failed");
