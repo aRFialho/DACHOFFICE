@@ -197,3 +197,37 @@ $$;
 CREATE TRIGGER finance_rule_version_immutable_after_use
   BEFORE UPDATE OR DELETE ON finance_rule_version
   FOR EACH ROW EXECUTE FUNCTION reject_referenced_finance_rule_version_mutation();
+
+CREATE FUNCTION reject_used_channel_fee_rule_mutation() RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE
+  referenced_rule_version_id uuid;
+  referenced_office_id uuid;
+BEGIN
+  IF TG_OP = 'DELETE' THEN
+    referenced_rule_version_id := OLD.finance_rule_version_id;
+    referenced_office_id := OLD.office_id;
+  ELSE
+    referenced_rule_version_id := NEW.finance_rule_version_id;
+    referenced_office_id := NEW.office_id;
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+    FROM order_margin_snapshot
+    WHERE finance_rule_version_id = referenced_rule_version_id
+      AND office_id = referenced_office_id
+  ) THEN
+    RAISE EXCEPTION 'channel_fee_rule is immutable after finance rule version use';
+  END IF;
+
+  IF TG_OP = 'DELETE' THEN
+    RETURN OLD;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER channel_fee_rule_immutable_after_finance_rule_version_use
+  BEFORE INSERT OR UPDATE OR DELETE ON channel_fee_rule
+  FOR EACH ROW EXECUTE FUNCTION reject_used_channel_fee_rule_mutation();
