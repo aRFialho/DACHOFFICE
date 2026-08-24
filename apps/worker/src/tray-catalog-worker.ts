@@ -59,6 +59,7 @@ export class PostgresCatalogSyncQueue implements CatalogSyncQueue {
           );
           continue;
         }
+        await client.query("UPDATE catalog_sync_run SET status = 'retryable', failure_code = 'catalog_worker_lease_reclaimed' WHERE id = $1 AND status = 'running'", [runId]);
         const leaseId = randomUUID();
         await client.query(
           `UPDATE outbox_message SET status = 'processing', attempt_count = attempt_count + 1,

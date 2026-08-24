@@ -44,16 +44,24 @@ const outputSchema: RuntimeSchema<unknown> = { parse: (value) => ({ ok: true, va
 const skuSchema = textSchema("sku");
 const searchSchema = textSchema("query");
 
-export const createStoreGeneralTools = (repository: CatalogReadRepository) => {
-  const definitions = [
+export const storeGeneralToolDefinitions = [
     defineTool({ code: "products.get", integration: "store-general", description: "Get a canonical product by SKU.", inputSchema: skuSchema, outputSchema, actionClass: "READ", idempotency: "not_required", retryPolicy: "safe_read", requiredGrant: "read", rateLimit: { requestsPerMinute: 60, costUnits: 1 } }),
     defineTool({ code: "products.search", integration: "store-general", description: "Search canonical products.", inputSchema: searchSchema, outputSchema, actionClass: "READ", idempotency: "not_required", retryPolicy: "safe_read", requiredGrant: "read", rateLimit: { requestsPerMinute: 60, costUnits: 1 } }),
     defineTool({ code: "products.getCost", integration: "store-general", description: "Get latest canonical cost by SKU.", inputSchema: skuSchema, outputSchema, actionClass: "READ", idempotency: "not_required", retryPolicy: "safe_read", requiredGrant: "read", rateLimit: { requestsPerMinute: 60, costUnits: 1 } }),
     defineTool({ code: "products.getListing", integration: "store-general", description: "Get canonical Tray listing by SKU.", inputSchema: skuSchema, outputSchema, actionClass: "READ", idempotency: "not_required", retryPolicy: "safe_read", requiredGrant: "read", rateLimit: { requestsPerMinute: 60, costUnits: 1 } }),
   ];
-  const registry = new ToolRegistry(definitions);
-  const authorizationService = new ToolAuthorizationService(registry);
-  const invoke = async (toolCode: string, input: unknown, context: PolicyEvaluationContext): Promise<ToolResult> => {
+export interface PolicyEvaluationContextLoader { load(taskId: string): Promise<PolicyEvaluationContext | null>; }
+export const createStoreGeneralTools = (options: {
+  repository: CatalogReadRepository;
+  registry: ToolRegistry;
+  authorizationService: ToolAuthorizationService;
+  contextLoader: PolicyEvaluationContextLoader;
+}) => {
+  const { repository, registry, authorizationService, contextLoader } = options;
+  const invoke = async (request: { taskId: string; toolCode: string; input: unknown }): Promise<ToolResult> => {
+    const context = await contextLoader.load(request.taskId);
+    if (!context) return { status: "denied", reason: "task_authority_missing" };
+    const { toolCode, input } = request;
     const decision = authorizationService.authorize({ toolCode, input, context });
     if (decision.status !== "allowed") return decision;
     const value = registry.validateInput(toolCode, input);
@@ -72,5 +80,5 @@ export const createStoreGeneralTools = (repository: CatalogReadRepository) => {
     if (listing && !("productId" in listing)) return { status: "mapping_unresolved" };
     return listing ? { status: "found", listing } : { status: "mapping_not_found" };
   };
-  return { definitions, registry, authorizationService, invoke };
+  return { definitions: storeGeneralToolDefinitions, registry, authorizationService, invoke };
 };

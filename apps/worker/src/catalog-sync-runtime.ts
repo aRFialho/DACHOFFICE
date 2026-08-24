@@ -1,7 +1,7 @@
 import { CatalogSyncService } from "../../../packages/catalog/src/catalog-sync-service.js";
 import { PostgresCatalogRepository } from "../../../packages/catalog/src/postgres-catalog-repository.js";
 import { TrayCatalogAdapter } from "../../../packages/catalog/src/tray-catalog-adapter.js";
-import { TrayCredentialProvider } from "../../../packages/catalog/src/tray-credential-provider.js";
+import { TrayCredentialProvider, type TrayRefreshTransport } from "../../../packages/catalog/src/tray-credential-provider.js";
 import { TrayCatalogOutboxWorker, PostgresCatalogSyncQueue } from "./tray-catalog-worker.js";
 import type { Pool } from "pg";
 
@@ -42,11 +42,11 @@ class PostgresTrayConnectionRepository {
   }
 }
 
-export const createConcreteCatalogSyncWorker = (input: { pool: Pool; encryptionKeyBase64: string; fetch: typeof fetch }): TrayCatalogOutboxWorker => {
+export const createConcreteCatalogSyncWorker = (input: { pool: Pool; encryptionKeyBase64: string; fetch: typeof fetch; refreshTransport: TrayRefreshTransport }): TrayCatalogOutboxWorker => {
   const credentials = new TrayCredentialProvider({
     encryptionKeyBase64: input.encryptionKeyBase64,
     repository: new PostgresTrayConnectionRepository(input.pool),
-    refreshTransport: { refresh: async () => { throw new Error("tray_auth_retryable"); } },
+    refreshTransport: input.refreshTransport,
   });
   const repository = new PostgresCatalogRepository({ pool: input.pool, currency: "BRL" });
   const service = new CatalogSyncService({

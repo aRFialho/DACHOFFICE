@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { PostgresCatalogRepository } from "../../../packages/catalog/src/postgres-catalog-repository.js";
 import { PostgresCatalogSyncQueue } from "../src/tray-catalog-worker.js";
 
 describe("PostgresCatalogSyncQueue durability", () => {
@@ -57,3 +58,29 @@ describe("PostgresCatalogSyncQueue durability", () => {
     expect(queries.some(({ text, values }) => text.includes("interval '1 second'") && values?.includes(60))).toBe(true);
   });
 });
+
+  it("returns a crashed running catalog run to a claimable state when reclaiming its lease", async () => {
+    let runStatus: "running" | "retryable" = "running";
+    const client = {
+      query: async (text: string) => {
+        if (text.includes("SELECT id, idempotency_key")) {
+          return { rows: [{ id: "stale", idempotency_key: "stale", payload_json: { runId: "run-2" }, attempt_count: 1 }] };
+        }
+        if (text.includes("SET status = 'retryable'") && text.includes("catalog_worker_lease_reclaimed")) {
+          if (runStatus === "running") runStatus = "retryable";
+          return { rows: [] };
+        }
+        if (text.includes("UPDATE catalog_sync_run") && text.includes("SET status = 'running'")) {
+          if (runStatus !== "retryable") return { rows: [] };
+          runStatus = "running";
+          return { rows: [{ id: "run-2", office_id: "office-1", integration_id: "integration-1", checkpoint_json: {}, requested_at: new Date("2026-08-24T00:00:00.000Z"), pages_seen: 0, items_seen: 0, mapped_count: 0, unresolved_count: 0 }] };
+        }
+        return { rows: [] };
+      },
+      release: () => undefined,
+    };
+    const pool = { connect: async () => client, query: async () => ({ rows: [] }) };
+
+    await expect(new PostgresCatalogSyncQueue(pool as never).claimNext()).resolves.toMatchObject({ runId: "run-2" });
+    await expect(new PostgresCatalogRepository({ pool: pool as never, currency: "BRL" }).claimRun("run-2")).resolves.toMatchObject({ id: "run-2" });
+  });
