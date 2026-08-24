@@ -65,14 +65,19 @@ describe("TrayCatalogAdapter", () => {
       fetch: async (input) => {
         calls.push(new Request(input));
         return calls.length === 1
-          ? response({ products: [productFixture], paging: { next: "next-page" } })
+          ? response({
+              products: [productFixture],
+              paging: { next: "next-page" },
+            })
           : response({ variations: [variationFixture] });
       },
       timeoutMs: 100,
       rateBudget: createBudget(),
     });
 
-    await expect(adapter.listProducts({ cursor: "first page" })).resolves.toEqual({
+    await expect(
+      adapter.listProducts({ cursor: "first page" }),
+    ).resolves.toEqual({
       products: [
         {
           externalProductId: "product-17",
@@ -110,7 +115,8 @@ describe("TrayCatalogAdapter", () => {
     const adapter = new TrayCatalogAdapter({
       connectionId: "tray-connection-1",
       credentials: createCredentials(),
-      fetch: async () => response({ products: [{ ...productFixture, price: 19.9 }] }),
+      fetch: async () =>
+        response({ products: [{ ...productFixture, price: 19.9 }] }),
       timeoutMs: 100,
       rateBudget: createBudget(),
     });
@@ -135,7 +141,9 @@ describe("TrayCatalogAdapter", () => {
       rateBudget: createBudget(),
     });
 
-    const thrown = await adapter.listProducts({}).catch((error: unknown) => error);
+    const thrown = await adapter
+      .listProducts({})
+      .catch((error: unknown) => error);
     expect(thrown).toBeInstanceOf(TraySafeError);
     expect(thrown).toMatchObject({
       message: "tray_auth_retryable",
@@ -155,7 +163,9 @@ describe("TrayCatalogAdapter", () => {
       timeoutMs: 100,
       rateBudget: {
         maxRequestsPerMinute: 180,
-        async take() { throw new Error("access_token_fixture_secret"); },
+        async take() {
+          throw new Error("access_token_fixture_secret");
+        },
       },
     });
     await expect(rateLimited.listProducts({})).rejects.toMatchObject({
@@ -168,7 +178,9 @@ describe("TrayCatalogAdapter", () => {
       credentials: createCredentials(),
       fetch: async (_input, init) =>
         new Promise<Response>((_resolve, reject) =>
-          init?.signal?.addEventListener("abort", () => reject(new Error("access_token_fixture_secret"))),
+          init?.signal?.addEventListener("abort", () =>
+            reject(new Error("access_token_fixture_secret")),
+          ),
         ),
       timeoutMs: 1,
       rateBudget: createBudget(),

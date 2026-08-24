@@ -66,15 +66,21 @@ export const createWorkerRuntime = (input: {
   taskWorkerFactory?: (pool: Pool) => WorkerConsumer;
   catalogWorkerFactory?: CatalogWorkerFactory;
 }) => {
-  const taskWorker = (input.taskWorkerFactory ?? createTaskOutboxWorker)(input.pool);
-  const catalogWorker = (input.catalogWorkerFactory ?? createConcreteCatalogSyncWorker)({
+  const taskWorker = (input.taskWorkerFactory ?? createTaskOutboxWorker)(
+    input.pool,
+  );
+  const catalogWorker = (
+    input.catalogWorkerFactory ?? createConcreteCatalogSyncWorker
+  )({
     pool: input.pool,
     encryptionKeyBase64: input.encryptionKeyBase64,
     fetch: input.fetch,
     refreshTransport: input.refreshTransport,
   });
   return {
-    async consumeAvailableWork(limit = 50): Promise<{ taskJobs: number; catalogSyncJobs: number }> {
+    async consumeAvailableWork(
+      limit = 50,
+    ): Promise<{ taskJobs: number; catalogSyncJobs: number }> {
       const [taskJobs, catalogSyncJobs] = await Promise.all([
         consumeAvailableTaskJobs(taskWorker as TaskOutboxWorker, limit),
         consumeAvailableCatalogSyncJobs(catalogWorker, limit),
@@ -84,20 +90,31 @@ export const createWorkerRuntime = (input: {
   };
 };
 
-export const startWorker = (input: Parameters<typeof createWorkerRuntime>[0] & {
-  intervalMs?: number;
-  onError?: () => void;
-}) => {
+export const startWorker = (
+  input: Parameters<typeof createWorkerRuntime>[0] & {
+    intervalMs?: number;
+    onError?: () => void;
+  },
+) => {
   const runtime = createWorkerRuntime(input);
   const intervalMs = input.intervalMs ?? 1_000;
-  if (!Number.isInteger(intervalMs) || intervalMs < 1_000) throw new Error("worker_interval_invalid");
+  if (!Number.isInteger(intervalMs) || intervalMs < 1_000)
+    throw new Error("worker_interval_invalid");
   let consuming = false;
   const consume = async (): Promise<void> => {
     if (consuming) return;
     consuming = true;
-    try { await runtime.consumeAvailableWork(); } catch { input.onError?.(); } finally { consuming = false; }
+    try {
+      await runtime.consumeAvailableWork();
+    } catch {
+      input.onError?.();
+    } finally {
+      consuming = false;
+    }
   };
   void consume();
-  const timer = setInterval(() => { void consume(); }, intervalMs);
+  const timer = setInterval(() => {
+    void consume();
+  }, intervalMs);
   return { stop: () => clearInterval(timer), consume };
 };

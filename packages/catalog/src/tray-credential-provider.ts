@@ -37,7 +37,9 @@ export type TrayAccessToken = { apiAddress: string; accessToken: string };
 export class TrayCredentialError extends Error {
   readonly retryable: boolean;
 
-  constructor(readonly code: "tray_credentials_invalid" | "tray_auth_retryable") {
+  constructor(
+    readonly code: "tray_credentials_invalid" | "tray_auth_retryable",
+  ) {
     super(code);
     this.name = "TrayCredentialError";
     this.retryable = code === "tray_auth_retryable";
@@ -90,23 +92,31 @@ export class TrayCredentialProvider {
         throw new Error("invalid refresh response");
       }
       const nextRefreshToken = refreshed.refreshToken ?? refreshToken;
-      if (!isNonBlankString(nextRefreshToken)) throw new Error("invalid refresh response");
+      if (!isNonBlankString(nextRefreshToken))
+        throw new Error("invalid refresh response");
       await this.options.repository.replaceEncryptedTokens({
         connectionId: connection.connectionId,
         accessToken: this.encrypt(refreshed.accessToken),
         refreshToken: this.encrypt(nextRefreshToken),
         accessTokenExpiresAt: refreshed.accessTokenExpiresAt,
       });
-      return { apiAddress: connection.apiAddress, accessToken: refreshed.accessToken };
+      return {
+        apiAddress: connection.apiAddress,
+        accessToken: refreshed.accessToken,
+      };
     } catch {
       throw new TrayCredentialError("tray_auth_retryable");
     }
   }
 
-  private async loadConnection(connectionId: string): Promise<EncryptedTrayConnection> {
+  private async loadConnection(
+    connectionId: string,
+  ): Promise<EncryptedTrayConnection> {
     try {
-      const connection = await this.options.repository.loadEncrypted(connectionId);
-      if (!connection || !isNonBlankString(connection.apiAddress)) throw new Error("missing");
+      const connection =
+        await this.options.repository.loadEncrypted(connectionId);
+      if (!connection || !isNonBlankString(connection.apiAddress))
+        throw new Error("missing");
       return connection;
     } catch {
       throw new TrayCredentialError("tray_credentials_invalid");
@@ -118,12 +128,19 @@ export class TrayCredentialProvider {
       const iv = decodeBase64(token.iv);
       const authTag = decodeBase64(token.authTag);
       const ciphertext = decodeBase64(token.ciphertext);
-      if (iv.length !== 12 || authTag.length !== 16 || ciphertext.length === 0) {
+      if (
+        iv.length !== 12 ||
+        authTag.length !== 16 ||
+        ciphertext.length === 0
+      ) {
         throw new Error("invalid encrypted token");
       }
       const decipher = createDecipheriv("aes-256-gcm", this.encryptionKey, iv);
       decipher.setAuthTag(authTag);
-      return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString("utf8");
+      return Buffer.concat([
+        decipher.update(ciphertext),
+        decipher.final(),
+      ]).toString("utf8");
     } catch {
       throw new TrayCredentialError("tray_credentials_invalid");
     }
@@ -132,7 +149,10 @@ export class TrayCredentialProvider {
   private encrypt(value: string): EncryptedTrayToken {
     const iv = randomBytes(12);
     const cipher = createCipheriv("aes-256-gcm", this.encryptionKey, iv);
-    const ciphertext = Buffer.concat([cipher.update(value, "utf8"), cipher.final()]);
+    const ciphertext = Buffer.concat([
+      cipher.update(value, "utf8"),
+      cipher.final(),
+    ]);
     return {
       ciphertext: ciphertext.toString("base64"),
       iv: iv.toString("base64"),
@@ -156,7 +176,11 @@ function decodeEncryptionKey(value: string): Buffer {
 }
 
 function decodeBase64(value: string): Buffer {
-  if (!/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(value)) {
+  if (
+    !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(
+      value,
+    )
+  ) {
     throw new Error("invalid base64");
   }
   return Buffer.from(value, "base64");

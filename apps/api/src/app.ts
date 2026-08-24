@@ -67,7 +67,9 @@ export const buildServer = (options: BuildServerOptions = {}) => {
       taskService: options.taskService,
     });
   }
-  if (options.storeGeneralTools) { server.decorate("storeGeneralTools", options.storeGeneralTools); }
+  if (options.storeGeneralTools) {
+    server.decorate("storeGeneralTools", options.storeGeneralTools);
+  }
   if (options.authService && options.catalogSyncRequestService) {
     registerCatalogRoutes(server, {
       authService: options.authService,

@@ -22,16 +22,19 @@ type CatalogSqlPool = Pick<Pool, "connect"> & {
 
 type IntegrationRow = { id: string; office_id: string };
 
-export class PostgresCatalogSyncRequestService
-  implements CatalogSyncRequestService
-{
+export class PostgresCatalogSyncRequestService implements CatalogSyncRequestService {
   constructor(private readonly pool: CatalogSqlPool) {}
 
-  async requestSync(input: { integrationId?: string }): Promise<{ runId: string }> {
+  async requestSync(input: {
+    integrationId?: string;
+  }): Promise<{ runId: string }> {
     const client = await this.pool.connect();
     try {
       await client.query("BEGIN");
-      const integration = await this.findIntegration(client, input.integrationId);
+      const integration = await this.findIntegration(
+        client,
+        input.integrationId,
+      );
       if (!integration) throw new Error("catalog_integration_not_found");
 
       const runId = randomUUID();

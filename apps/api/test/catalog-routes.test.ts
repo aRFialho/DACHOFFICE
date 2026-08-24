@@ -19,7 +19,9 @@ const password = "Correct-Horse-Battery-Staple-2026";
 class RecordingCatalogSyncRequestService {
   readonly requests: Array<{ integrationId?: string }> = [];
 
-  async requestSync(input: { integrationId?: string }): Promise<{ runId: string }> {
+  async requestSync(input: {
+    integrationId?: string;
+  }): Promise<{ runId: string }> {
     this.requests.push(input);
     return { runId: "run-1" };
   }

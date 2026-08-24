@@ -37,9 +37,10 @@ export class CatalogSyncService {
     if (!run) return summary(runId, "not_claimed", undefined);
 
     let state = run;
-    const provider = typeof this.options.provider === 'function'
-      ? this.options.provider(run)
-      : this.options.provider;
+    const provider =
+      typeof this.options.provider === "function"
+        ? this.options.provider(run)
+        : this.options.provider;
     try {
       for (;;) {
         const page = await provider.listProducts(
