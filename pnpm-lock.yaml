@@ -93,6 +93,9 @@ importers:
       "@dachbyte-office/margin-agent":
         specifier: workspace:*
         version: link:../../packages/margin-agent
+      "@dachbyte-office/pricing-agent":
+        specifier: workspace:*
+        version: link:../../packages/pricing-agent
       pg:
         specifier: 8.23.0
         version: 8.23.0
