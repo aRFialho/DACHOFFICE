@@ -2,11 +2,12 @@
 
 ## Status and scope
 
-Sprint 7 code and its task-level independent reviews are accepted locally. It
-adds a deterministic, asynchronous Margin Agent workflow over persisted finance
-facts. Migration `008_margin_analysis_reports.sql` is **not applied** by this
-record; connected database postflight and provider staging are separate future
-evidence.
+Sprint 7 code and its task-level independent reviews are accepted. It adds a
+deterministic, asynchronous Margin Agent workflow over persisted finance facts.
+On 2026-08-25, the approved forward migration
+`008_margin_analysis_reports.sql` was applied to the configured Neon target;
+the immediately following repository health check passed. Connected provider
+staging remains separate future evidence.
 
 The workflow does not call an LLM, marketplace, integration, provider, or
 another agent. Shopee and Mercado Livre integrations remain on standby, and
@@ -104,12 +105,10 @@ completion/events. Report and evidence records are append-only immutable.
 `008_margin_analysis_reports.sql` is additive and forward-only. It adds the
 immutable, office-scoped report record, tenant-bound foreign keys, report
 idempotency constraints, indexes, and a trigger rejecting report update/delete.
-Do not apply it until final acceptance is recorded and the approved target,
-change window, and recovery posture are confirmed. Apply it once through the
-approved forward migration process, then run repository health validation and
-record only migration identifier plus pass/fail. If an issue appears after
-application, preserve financial evidence and prepare a reviewed forward
-remediation; do not issue a destructive rollback.
+After final acceptance, it was applied once to the configured Neon target on
+2026-08-25 and the immediate repository health check passed. If an issue
+appears after application, preserve financial evidence and prepare a reviewed
+forward remediation; do not issue a destructive rollback.
 
 ## Acceptance evidence
 
@@ -120,7 +119,7 @@ remediation; do not issue a destructive rollback.
 | Worker authorization-before-facts, duplicate delivery settlement, transactional replay/conflict behavior | `apps/worker/src/margin/margin-analysis-task-handler.ts`; `apps/worker/src/margin/postgres-margin-analysis-task-repository.ts`; worker margin tests (Task 3 final review accepted).                                                                                                         |
 | Authenticated create/read API and task-office-bound READ tool                                            | `apps/api/src/modules/margin/margin-analysis-routes.ts`; `margin-analysis-service.ts`; `margin-tools.ts`; `postgres-margin-analysis-runtime.ts`; API margin route/tool tests (Task 4 final review accepted).                                                                                |
 | Local quality gates                                                                                      | Accepted task reports record focused suites, affected typechecks/builds, frozen offline install, Prettier, and `git diff --check` at their accepted revisions.                                                                                                                              |
-| Database deployment                                                                                      | Deliberately pending: 008 has not been applied and no connected postflight result is asserted.                                                                                                                                                                                              |
+| Database deployment                                                                                      | On 2026-08-25, 008 was applied through the approved forward migration script; the immediate Neon repository health check passed.                                                                                                                                                               |
 
 ## Deferred staging acceptance
 

@@ -9,10 +9,11 @@ arquitetural aprovado em 2026-08-19.
 
 ## Status
 
-Sprint 7 Margin Agent code and local task reviews are accepted. It provides a
-deterministic asynchronous period-margin workflow over persisted finance facts;
-the forward-only `008_margin_analysis_reports.sql` deployment and all connected
-provider staging validation remain pending. See
+Sprint 7 Margin Agent is accepted and its forward-only
+`008_margin_analysis_reports.sql` migration was applied to Neon with a passing
+post-migration health check on 2026-08-25. It provides a deterministic
+asynchronous period-margin workflow over persisted finance facts; connected
+provider staging validation remains pending. See
 [docs/sprints/07-margin-agent-workflow.md](docs/sprints/07-margin-agent-workflow.md)
 for the contract, safety boundaries, and acceptance evidence.
 
