@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { buildServer } from "../src/app.js";
 import {
   createTaskService,
@@ -78,6 +78,40 @@ describe("task routes", () => {
       source: "human",
       requestedByUserId: "11111111-1111-4111-8111-111111111111",
     });
+    await server.close();
+  });
+  it("rejects reserved margin analysis before task/outbox persistence", async () => {
+    const createHumanTask = vi.fn();
+    const server = buildServer({
+      authService: createAuthService({
+        repository: authRepository,
+        tokenConfig,
+      }),
+      authTokenConfig: tokenConfig,
+      taskService: createTaskService({ createHumanTask }),
+    });
+    const login = await server.inject({
+      method: "POST",
+      url: "/v1/auth/login",
+      payload: { email: "admin@example.com", password },
+    });
+    const response = await server.inject({
+      method: "POST",
+      url: "/v1/tasks",
+      headers: { authorization: `Bearer ${login.json().accessToken}` },
+      payload: {
+        officeId: "office-1",
+        type: "margin.analysis",
+        title: "Bypass dedicated margin entry point",
+        description: "This generic task must not reach persistence.",
+        priority: "normal",
+        context: [],
+      },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({ error: "task_creation_failed" });
+    expect(createHumanTask).not.toHaveBeenCalled();
     await server.close();
   });
 });

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   TaskService,
   type TaskRepository,
@@ -48,5 +48,23 @@ describe("TaskService", () => {
         context: [{ key: "", value: "untrusted" }],
       }),
     ).rejects.toThrow("task context key is invalid");
+  });
+  it("rejects reserved margin analysis before task/outbox persistence", async () => {
+    const createHumanTask = vi.fn();
+    const service = new TaskService({ createHumanTask });
+
+    await expect(
+      service.createHumanTask({
+        officeId: "office-1",
+        type: "margin.analysis",
+        title: "Bypass dedicated margin entry point",
+        description: "This generic task must not reach persistence.",
+        priority: "normal",
+        requestedByUserId: "user-1",
+        context: [],
+      }),
+    ).rejects.toThrow("task type is reserved");
+
+    expect(createHumanTask).not.toHaveBeenCalled();
   });
 });
