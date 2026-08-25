@@ -21,6 +21,9 @@ import {
 import { registerFinanceRoutes } from "./modules/finance/finance-routes.js";
 import type { FinanceService } from "./modules/finance/finance-service.js";
 import type { FinanceTools } from "./modules/finance/finance-tools.js";
+import { registerMarginAnalysisRoutes } from "./modules/margin/margin-analysis-routes.js";
+import type { MarginAnalysisService } from "./modules/margin/margin-analysis-service.js";
+import type { MarginTools } from "./modules/margin/margin-tools.js";
 
 export interface BuildServerOptions {
   authService?: AuthService;
@@ -33,6 +36,8 @@ export interface BuildServerOptions {
   storeGeneralTools?: StoreGeneralTools;
   financeService?: FinanceService;
   financeTools?: FinanceTools;
+  marginAnalysisService?: MarginAnalysisService;
+  marginTools?: MarginTools;
 }
 
 export const buildServer = (options: BuildServerOptions = {}) => {
@@ -88,6 +93,15 @@ export const buildServer = (options: BuildServerOptions = {}) => {
     registerFinanceRoutes(server, {
       authService: options.authService,
       financeService: options.financeService,
+    });
+  }
+  if (options.marginTools) {
+    server.decorate("marginTools", options.marginTools);
+  }
+  if (options.authService && options.marginAnalysisService) {
+    registerMarginAnalysisRoutes(server, {
+      authService: options.authService,
+      marginAnalysisService: options.marginAnalysisService,
     });
   }
   return server;
