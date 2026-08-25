@@ -5,6 +5,9 @@ import {
   PostgresTaskQueue,
 } from "./postgres-task-worker.js";
 import { TaskOutboxWorker } from "./task-worker.js";
+import { MarginAnalysisTaskHandler } from "./margin/margin-analysis-task-handler.js";
+import { PostgresMarginAnalysisRepository } from "./margin/postgres-margin-analysis-repository.js";
+import { PostgresMarginAnalysisTaskRepository } from "./margin/postgres-margin-analysis-task-repository.js";
 import {
   PostgresCatalogSyncQueue,
   TrayCatalogOutboxWorker,
@@ -12,11 +15,16 @@ import {
 } from "./tray-catalog-worker.js";
 import { createConcreteCatalogSyncWorker } from "./catalog-sync-runtime.js";
 
-export const createTaskOutboxWorker = (pool: Pool): TaskOutboxWorker =>
-  new TaskOutboxWorker(
+export const createTaskOutboxWorker = (pool: Pool): TaskOutboxWorker => {
+  const marginHandler = new MarginAnalysisTaskHandler({
+    repository: new PostgresMarginAnalysisTaskRepository(pool),
+    facts: new PostgresMarginAnalysisRepository({ pool }),
+  });
+  return new TaskOutboxWorker(
     new PostgresTaskQueue(pool),
-    new PostgresTaskJobRunner(pool),
+    new PostgresTaskJobRunner(pool, marginHandler),
   );
+};
 
 export const consumeAvailableTaskJobs = async (
   worker: TaskOutboxWorker,

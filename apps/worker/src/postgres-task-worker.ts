@@ -57,10 +57,20 @@ export class PostgresTaskQueue implements TaskQueue {
   }
 }
 
+export interface TaskJobDispatcher {
+  canHandle(job: TaskOutboxJob): Promise<boolean>;
+  run(job: TaskOutboxJob): Promise<boolean>;
+}
+
 export class PostgresTaskJobRunner implements TaskJobRunner {
-  constructor(private readonly pool: Pool) {}
+  constructor(
+    private readonly pool: Pool,
+    private readonly dispatch?: TaskJobDispatcher,
+  ) {}
 
   async run(job: TaskOutboxJob): Promise<boolean> {
+    const dispatch = this.dispatch;
+    if (dispatch && (await dispatch.canHandle(job))) return dispatch.run(job);
     const client = await this.pool.connect();
     try {
       await client.query("BEGIN");
