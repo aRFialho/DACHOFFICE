@@ -80,6 +80,8 @@ export class MarginAnalysisTaskHandler {
 
   async run(job: TaskOutboxJob): Promise<boolean> {
     return this.options.repository.inTransaction(async (transaction) => {
+      if (!(await transaction.claimDelivery(job.idempotencyKey))) return true;
+
       const task = await transaction.loadTask(job.taskId);
       if (!task) throw taskFailure("margin_analysis_task_unauthorized");
 
@@ -96,7 +98,6 @@ export class MarginAnalysisTaskHandler {
       });
       if (!authorized) throw taskFailure("margin_analysis_task_unauthorized");
 
-      if (!(await transaction.claimDelivery(job.idempotencyKey))) return true;
       if (task.status !== "queued")
         throw taskFailure("margin_analysis_task_not_queued");
 

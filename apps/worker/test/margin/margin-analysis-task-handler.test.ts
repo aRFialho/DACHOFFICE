@@ -157,15 +157,12 @@ describe("MarginAnalysisTaskHandler", () => {
 
     expect(sourceFacts.calls).toEqual(["snapshots:office-1", "costs:office-1"]);
     expect(repository.transaction.calls).toEqual([
+      "delivery",
       "task",
       "context",
       "authorize",
-      "delivery",
       "report",
       "complete",
-      "task",
-      "context",
-      "authorize",
       "delivery",
     ]);
     expect(repository.transaction.reports).toEqual([
@@ -188,6 +185,7 @@ describe("MarginAnalysisTaskHandler", () => {
   it("acknowledges an already-completed delivery without repeating task or report work", async () => {
     const repository = new FakeTaskRepository();
     repository.transaction.deliveryClaimed = false;
+    repository.transaction.authorized = false;
     const sourceFacts = facts();
     const handler = new MarginAnalysisTaskHandler({
       repository,
@@ -207,6 +205,7 @@ describe("MarginAnalysisTaskHandler", () => {
     ).resolves.toBe(true);
 
     expect(settled).toEqual([true]);
+    expect(repository.transaction.calls).toEqual(["delivery"]);
     expect(sourceFacts.calls).toEqual([]);
     expect(repository.transaction.reports).toEqual([]);
     expect(repository.transaction.completions).toBe(0);
@@ -278,7 +277,13 @@ describe("MarginAnalysisTaskHandler", () => {
     );
     expect(deniedFacts.calls).toEqual([]);
     expect(deniedRepository.transaction.reports).toEqual([]);
-    expect(deniedRepository.transaction.calls).not.toContain("delivery");
+    expect(deniedRepository.transaction.calls).toEqual([
+      "delivery",
+      "task",
+      "context",
+      "authorize",
+    ]);
+    expect(deniedRepository.rolledBack).toBe(true);
   });
 
   it("rolls back a retryable fact-storage failure without completing the task", async () => {

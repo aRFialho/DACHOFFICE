@@ -187,7 +187,7 @@ describe("PostgresMarginAnalysisTaskRepository", () => {
     );
     expect(
       pool.queries.some(({ text }) => text.includes("worker_job_delivery")),
-    ).toBe(false);
+    ).toBe(true);
   });
   it("rolls back a same-key report replay when canonical persisted facts differ", async () => {
     const pool = new RecordingPool();
