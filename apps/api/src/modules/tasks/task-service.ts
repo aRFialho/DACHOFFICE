@@ -50,7 +50,7 @@ export class TaskService {
   async createHumanTask(input: CreateHumanTaskInput): Promise<TaskRecord> {
     required(input.officeId, "officeId", 80);
     required(input.type, "task type", 80);
-    if (input.type === "margin.analysis")
+    if (input.type === "margin.analysis" || input.type === "pricing.simulation")
       throw new Error("task type is reserved");
     required(input.title, "task title", 240);
     required(input.description, "task description", 20000);

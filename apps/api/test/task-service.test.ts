@@ -67,4 +67,23 @@ describe("TaskService", () => {
 
     expect(createHumanTask).not.toHaveBeenCalled();
   });
+
+  it("rejects reserved pricing simulation before task/outbox persistence", async () => {
+    const createHumanTask = vi.fn();
+    const service = new TaskService({ createHumanTask });
+
+    await expect(
+      service.createHumanTask({
+        officeId: "office-1",
+        type: "pricing.simulation",
+        title: "Bypass dedicated pricing entry point",
+        description: "This generic task must not reach persistence.",
+        priority: "normal",
+        requestedByUserId: "user-1",
+        context: [],
+      }),
+    ).rejects.toThrow("task type is reserved");
+
+    expect(createHumanTask).not.toHaveBeenCalled();
+  });
 });
