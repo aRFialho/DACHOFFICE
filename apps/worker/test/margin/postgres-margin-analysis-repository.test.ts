@@ -312,4 +312,122 @@ describe("PostgresMarginAnalysisRepository", () => {
     expect(insert?.text).not.toContain("margin:task-1");
     expect(insert?.values).toContain("margin:task-1");
   });
+  it("surfaces a fixed retryable error when the snapshot query fails", async () => {
+    const repository = new PostgresMarginAnalysisRepository({
+      pool: {
+        connect: async () => ({
+          query: async () => {
+            throw new Error("driver details must not leak");
+          },
+          release: () => undefined,
+        }),
+      },
+    });
+
+    await expect(
+      repository.loadLatestSnapshots({
+        officeId,
+        periodStart: "2026-08-01T00:00:00.000Z",
+        periodEnd: "2026-08-31T23:59:59.999Z",
+      }),
+    ).rejects.toMatchObject({ code: "margin_analysis_repository_retryable" });
+  });
+
+  it("surfaces a fixed retryable error when canonical cost storage is unavailable", async () => {
+    const repository = new PostgresMarginAnalysisRepository({
+      pool: {
+        connect: async () => ({
+          query: async () => {
+            throw new Error("driver details must not leak");
+          },
+          release: () => undefined,
+        }),
+      },
+    });
+
+    await expect(
+      repository.loadCanonicalCosts({
+        officeId,
+        orders: [{ orderId: "order-1", skus: ["SKU-1"] }],
+      }),
+    ).rejects.toMatchObject({ code: "margin_analysis_repository_retryable" });
+  });
+
+  it("returns not_found for malformed selected report JSON or normalized report fields", async () => {
+    const malformedReportPool = new RecordingPool({
+      "SELECT id, agent_id": [
+        {
+          id: "report-1",
+          report_json: { status: "completed" },
+          evidence_json: {},
+          provenance_json: {},
+          filters_json: {},
+          status: "completed",
+          confidence: "REAL",
+          revenue_numeric: "100.0000",
+          cmv_numeric: "20.0000",
+          taxes_numeric: "10.0000",
+          marketplace_fees_numeric: "5.0000",
+          seller_discounts_numeric: "0.0000",
+          logistics_numeric: "2.0000",
+          ads_cost_numeric: "1.0000",
+          other_costs_numeric: "0.0000",
+          contribution_amount_numeric: "62.0000",
+          contribution_percent_numeric: "62.0000",
+          calculated_at: "2026-08-25T00:00:00.000Z",
+        },
+      ],
+    });
+    const invalidNormalizedPool = new RecordingPool({
+      "SELECT id, agent_id": [
+        {
+          id: "report-1",
+          report_json: report,
+          evidence_json: report.evidence,
+          provenance_json: report.provenance,
+          filters_json: {},
+          status: "invalid",
+          confidence: "REAL",
+          revenue_numeric: "100.0000",
+          cmv_numeric: "20.0000",
+          taxes_numeric: "10.0000",
+          marketplace_fees_numeric: "5.0000",
+          seller_discounts_numeric: "0.0000",
+          logistics_numeric: "2.0000",
+          ads_cost_numeric: "1.0000",
+          other_costs_numeric: "0.0000",
+          contribution_amount_numeric: "62.0000",
+          contribution_percent_numeric: "62.0000",
+          calculated_at: "2026-08-25T00:00:00.000Z",
+        },
+      ],
+    });
+
+    await expect(
+      new PostgresMarginAnalysisRepository({
+        pool: malformedReportPool,
+      }).getLatestReport(officeId, taskId),
+    ).resolves.toEqual({ status: "not_found" });
+    await expect(
+      new PostgresMarginAnalysisRepository({
+        pool: invalidNormalizedPool,
+      }).getLatestReport(officeId, taskId),
+    ).resolves.toEqual({ status: "not_found" });
+  });
+
+  it("surfaces a fixed retryable error when latest-report storage is unavailable", async () => {
+    const repository = new PostgresMarginAnalysisRepository({
+      pool: {
+        connect: async () => {
+          throw new Error("driver details must not leak");
+        },
+      },
+    });
+
+    await expect(
+      repository.getLatestReport(officeId, taskId),
+    ).rejects.toMatchObject({
+      code: "margin_analysis_repository_retryable",
+    });
+  });
 });

@@ -33,3 +33,18 @@
 
 No environment, Neon, external API/provider, route, or migration-deployment
 action was performed.
+
+## Review remediation
+
+- Added RED-to-GREEN regressions proving snapshot, canonical-cost, and
+  latest-report storage failures surface only as the fixed
+  `margin_analysis_repository_retryable` error. They no longer fabricate
+  `no_margin_snapshots`, `missing_cost`, or `not_found` outcomes.
+- Latest-report reads now select and verify every normalized report fact,
+  including agent/version provenance, period, filters, JSON evidence and
+  provenance, status, confidence, all DRE totals, calculation timestamp, and
+  idempotency key. Malformed report JSON or normalized values return
+  `not_found` only when a stored record is invalid.
+- Remediation validation: focused Worker suite 40/40, Worker and Margin Agent
+  typechecks, frozen offline install, Prettier check, and `git diff --check`
+  passed.

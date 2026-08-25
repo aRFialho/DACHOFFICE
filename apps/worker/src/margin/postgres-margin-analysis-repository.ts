@@ -46,9 +46,17 @@ export type PersistMarginAnalysisReportResult =
 
 export type MarginAnalysisReportRead = {
   reportId: string;
-  report: Record<string, unknown>;
+  report: MarginPeriodReport;
   calculatedAt: string;
 };
+
+export class MarginAnalysisRepositoryError extends Error {
+  readonly code = "margin_analysis_repository_retryable";
+
+  constructor() {
+    super("margin_analysis_repository_retryable");
+  }
+}
 
 export class PostgresMarginAnalysisRepository {
   constructor(private readonly options: { pool: MarginAnalysisSqlPool }) {}
@@ -57,8 +65,9 @@ export class PostgresMarginAnalysisRepository {
     input: LoadLatestSnapshotsInput,
   ): Promise<PersistedOrderMargin[]> {
     if (!validPeriod(input.periodStart, input.periodEnd)) return [];
-    const client = await this.options.pool.connect();
+    let client: MarginAnalysisSqlClient | undefined;
     try {
+      client = await this.options.pool.connect();
       const result = await client.query(
         `WITH latest_snapshots AS (
            SELECT DISTINCT ON (s.order_header_id)
@@ -111,9 +120,9 @@ export class PostgresMarginAnalysisRepository {
       );
       return result.rows.flatMap(snapshotFromRow);
     } catch {
-      return [];
+      throw new MarginAnalysisRepositoryError();
     } finally {
-      client.release();
+      client?.release();
     }
   }
 
@@ -122,8 +131,9 @@ export class PostgresMarginAnalysisRepository {
   ): Promise<CanonicalCostLookup[]> {
     const requested = normalizedRequestedCosts(input.orders);
     if (requested.orderIds.length === 0) return [];
-    const client = await this.options.pool.connect();
+    let client: MarginAnalysisSqlClient | undefined;
     try {
+      client = await this.options.pool.connect();
       const result = await client.query(
         `WITH requested_costs AS (
            SELECT requested.order_id, requested_skus.sku
@@ -159,9 +169,9 @@ export class PostgresMarginAnalysisRepository {
       );
       return costsFromRows(requested.keys, result.rows);
     } catch {
-      return missingCosts(requested.keys);
+      throw new MarginAnalysisRepositoryError();
     } finally {
-      client.release();
+      client?.release();
     }
   }
 
@@ -170,8 +180,9 @@ export class PostgresMarginAnalysisRepository {
   ): Promise<PersistMarginAnalysisReportResult> {
     const facts = reportFacts(input);
     if (!facts) return { status: "conflict", reportId: "" };
-    const client = await this.options.pool.connect();
+    let client: MarginAnalysisSqlClient | undefined;
     try {
+      client = await this.options.pool.connect();
       await client.query("BEGIN");
       const inserted = await client.query<{ id: string }>(
         `INSERT INTO margin_analysis_report (
@@ -216,10 +227,16 @@ export class PostgresMarginAnalysisRepository {
         ? { status: "unchanged", reportId: existingId }
         : { status: "conflict", reportId: existingId };
     } catch {
-      await client.query("ROLLBACK");
-      return { status: "conflict", reportId: "" };
+      if (client !== undefined) {
+        try {
+          await client.query("ROLLBACK");
+        } catch {
+          // The original storage failure remains the worker retry signal.
+        }
+      }
+      throw new MarginAnalysisRepositoryError();
     } finally {
-      client.release();
+      client?.release();
     }
   }
 
@@ -230,33 +247,165 @@ export class PostgresMarginAnalysisRepository {
     | { status: "found"; report: MarginAnalysisReportRead }
     | { status: "not_found" }
   > {
-    const client = await this.options.pool.connect();
+    let client: MarginAnalysisSqlClient | undefined;
     try {
+      client = await this.options.pool.connect();
       const result = await client.query(
-        `SELECT id, report_json, calculated_at::text AS calculated_at
+        `SELECT id, agent_id, agent_version_id, period_start::text AS period_start,
+                period_end::text AS period_end, filters_json, report_json, evidence_json,
+                provenance_json, status, confidence, revenue_numeric::text AS revenue_numeric,
+                cmv_numeric::text AS cmv_numeric, taxes_numeric::text AS taxes_numeric,
+                marketplace_fees_numeric::text AS marketplace_fees_numeric,
+                seller_discounts_numeric::text AS seller_discounts_numeric,
+                logistics_numeric::text AS logistics_numeric, ads_cost_numeric::text AS ads_cost_numeric,
+                other_costs_numeric::text AS other_costs_numeric,
+                contribution_amount_numeric::text AS contribution_amount_numeric,
+                contribution_percent_numeric::text AS contribution_percent_numeric,
+                calculated_at::text AS calculated_at, idempotency_key
          FROM margin_analysis_report
          WHERE office_id = $1 AND task_id = $2
          ORDER BY calculated_at DESC, id DESC
          LIMIT 1`,
         [officeId, taskId],
       );
-      const row = result.rows[0];
-      const reportId = text(row?.id);
-      const calculatedAt = isoTimestamp(row?.calculated_at);
-      if (!reportId || !calculatedAt || !isRecord(row?.report_json))
-        return { status: "not_found" };
-      return {
-        status: "found",
-        report: { reportId, report: row.report_json, calculatedAt },
-      };
+      const report = latestReportFromRow(result.rows[0], officeId, taskId);
+      return report ? { status: "found", report } : { status: "not_found" };
     } catch {
-      return { status: "not_found" };
+      throw new MarginAnalysisRepositoryError();
     } finally {
-      client.release();
+      client?.release();
     }
   }
 }
 
+function latestReportFromRow(
+  row: SqlRow | undefined,
+  officeId: string,
+  taskId: string,
+): MarginAnalysisReportRead | null {
+  const reportId = text(row?.id);
+  const calculatedAt = isoTimestamp(row?.calculated_at);
+  const idempotencyKey = text(row?.idempotency_key);
+  const report = marginPeriodReport(row?.report_json);
+  if (!reportId || !calculatedAt || !idempotencyKey || !report) return null;
+  const facts = reportFacts({ idempotencyKey, calculatedAt, report });
+  if (!facts || facts.officeId !== officeId || facts.taskId !== taskId)
+    return null;
+  if (!sameReportFacts(facts, row)) return null;
+  return { reportId, report, calculatedAt };
+}
+
+function marginPeriodReport(value: unknown): MarginPeriodReport | null {
+  if (!isRecord(value)) return null;
+  const status =
+    value.status === "completed" || value.status === "no_margin_snapshots"
+      ? value.status
+      : null;
+  const confidence = componentConfidence(value.confidence);
+  const totals = marginDreTotals(value.totals);
+  const evidence = marginEvidence(value.evidence);
+  const provenance = marginProvenance(value.provenance);
+  if (
+    !status ||
+    !confidence ||
+    !totals ||
+    !evidence ||
+    !provenance ||
+    !Array.isArray(value.orders) ||
+    !Array.isArray(value.findings)
+  )
+    return null;
+  return {
+    ...(value as unknown as MarginPeriodReport),
+    status,
+    confidence,
+    totals,
+    evidence,
+    provenance,
+  };
+}
+
+function marginDreTotals(value: unknown): MarginPeriodReport["totals"] | null {
+  if (!isRecord(value)) return null;
+  const keys = [
+    "revenue",
+    "cmv",
+    "taxes",
+    "marketplaceFees",
+    "sellerDiscounts",
+    "logistics",
+    "adsCost",
+    "otherCosts",
+    "contributionAmount",
+    "contributionPercent",
+  ] as const;
+  const amounts = keys.map((key) => money(value[key]));
+  if (amounts.some((amount) => amount === null)) return null;
+  return Object.fromEntries(
+    keys.map((key, index) => [key, amounts[index]!]),
+  ) as unknown as MarginPeriodReport["totals"];
+}
+
+function marginEvidence(value: unknown): MarginPeriodReport["evidence"] | null {
+  if (
+    !isRecord(value) ||
+    !Array.isArray(value.unresolvedCosts) ||
+    !Array.isArray(value.consultations)
+  )
+    return null;
+  return value as unknown as MarginPeriodReport["evidence"];
+}
+
+function marginProvenance(
+  value: unknown,
+): MarginPeriodReport["provenance"] | null {
+  if (!isRecord(value)) return null;
+  const requiredText = [
+    value.officeId,
+    value.taskId,
+    value.agentId,
+    value.agentVersionId,
+  ].map(text);
+  const periodStart = isoTimestamp(value.periodStart);
+  const periodEnd = isoTimestamp(value.periodEnd);
+  const arrays = [
+    value.snapshotIds,
+    value.financeRuleVersionIds,
+    value.calculationVersions,
+    value.snapshotCalculatedAts,
+    value.evidenceReferences,
+  ].map(stringArray);
+  const filters = value.filters;
+  if (
+    requiredText.some((item) => !item) ||
+    !periodStart ||
+    !periodEnd ||
+    Date.parse(periodEnd) < Date.parse(periodStart) ||
+    arrays.some((item) => item === null) ||
+    (filters !== undefined && !isRecord(filters))
+  )
+    return null;
+  return {
+    ...(value as unknown as MarginPeriodReport["provenance"]),
+    officeId: requiredText[0]!,
+    taskId: requiredText[1]!,
+    agentId: requiredText[2]!,
+    agentVersionId: requiredText[3]!,
+    periodStart,
+    periodEnd,
+    snapshotIds: arrays[0]!,
+    financeRuleVersionIds: arrays[1]!,
+    calculationVersions: arrays[2]!,
+    snapshotCalculatedAts: arrays[3]!,
+    evidenceReferences: arrays[4]!,
+  };
+}
+
+function stringArray(value: unknown): string[] | null {
+  return Array.isArray(value) && value.every((item) => text(item) !== null)
+    ? value.map((item) => item as string)
+    : null;
+}
 function snapshotFromRow(row: SqlRow): PersistedOrderMargin[] {
   const snapshotId = text(row.snapshot_id);
   const orderId = text(row.order_id);
