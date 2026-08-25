@@ -19,7 +19,7 @@ export function toMoney(value: bigint, field: string): Money {
 }
 
 export function roundHalfUp(numerator: bigint, denominator: bigint): bigint {
-  const negative = (numerator < 0n) !== (denominator < 0n);
+  const negative = numerator < 0n !== denominator < 0n;
   const absoluteNumerator = numerator < 0n ? -numerator : numerator;
   const absoluteDenominator = denominator < 0n ? -denominator : denominator;
   const quotient = absoluteNumerator / absoluteDenominator;
@@ -30,7 +30,8 @@ export function roundHalfUp(numerator: bigint, denominator: bigint): bigint {
 }
 
 export function ceilDivide(numerator: bigint, denominator: bigint): bigint {
-  if (denominator <= 0n) throw new Error("decimal denominator must be positive");
+  if (denominator <= 0n)
+    throw new Error("decimal denominator must be positive");
   if (numerator < 0n) throw new Error("decimal numerator must be non-negative");
   return (numerator + denominator - 1n) / denominator;
 }

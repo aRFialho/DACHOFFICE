@@ -154,7 +154,10 @@ function assertRequest(value: unknown): PricingSimulationRequest {
   const periodEnd = utcTimestamp(request.periodEnd, "periodEnd");
   if (Date.parse(periodEnd) < Date.parse(periodStart))
     throw new Error("periodEnd must not be before periodStart");
-  const discountPercent = assertMoney(request.discountPercent, "discountPercent");
+  const discountPercent = assertMoney(
+    request.discountPercent,
+    "discountPercent",
+  );
   if (toScaled(discountPercent) < 0n || toScaled(discountPercent) >= 1_000_000n)
     throw new Error("discountPercent must be at least 0 and less than 100");
   return {
@@ -268,7 +271,6 @@ function array(value: unknown, field: string): unknown[] {
   return value;
 }
 
-
 function arrayAllowEmpty(value: unknown, field: string): unknown[] {
   if (!Array.isArray(value)) throw new Error(`${field} must be an array`);
   return value;
@@ -302,13 +304,18 @@ function distinct(
   field: string,
   parser: (value: unknown, field: string) => string,
 ): string[] {
-  const parsed = values.map((value, index) => parser(value, `${field}[${index}]`));
+  const parsed = values.map((value, index) =>
+    parser(value, `${field}[${index}]`),
+  );
   if (new Set(parsed).size !== parsed.length)
     throw new Error(`${field} must not contain duplicates`);
   return parsed;
 }
 
-function sameStrings(left: readonly string[], right: readonly string[]): boolean {
+function sameStrings(
+  left: readonly string[],
+  right: readonly string[],
+): boolean {
   return (
     left.length === right.length &&
     left.every((value, index) => value === right[index])

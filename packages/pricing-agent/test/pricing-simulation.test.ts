@@ -115,7 +115,9 @@ describe("simulatePricing", () => {
       lines: [
         expect.objectContaining({
           actionStatus: "unresolved",
-          findings: [expect.objectContaining({ type: "finance_assumptions_missing" })],
+          findings: [
+            expect.objectContaining({ type: "finance_assumptions_missing" }),
+          ],
         }),
       ],
     });

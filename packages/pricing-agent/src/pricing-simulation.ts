@@ -22,7 +22,11 @@ export function simulatePricing(
 ): PricingSimulationReport {
   const input = assertPricingSimulationInput(value);
   const lines = input.products.map((product) =>
-    simulateProduct(product, input.feeAssumptions, input.request.discountPercent),
+    simulateProduct(
+      product,
+      input.feeAssumptions,
+      input.request.discountPercent,
+    ),
   );
   const hasFindings = lines.some((line) => line.findings.length > 0);
   return {
