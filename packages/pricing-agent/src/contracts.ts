@@ -248,13 +248,24 @@ function assertFeeAssumption(value: unknown): PricingFeeAssumption {
   };
 }
 
-const strictUtc = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/;
+const strictUtc =
+  /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?Z$/;
 
 function utcTimestamp(value: unknown, field: string): string {
-  if (typeof value !== "string" || !strictUtc.test(value))
+  if (typeof value !== "string")
     throw new Error(`${field} must be a valid UTC timestamp`);
+  const match = strictUtc.exec(value);
+  if (match === null) throw new Error(`${field} must be a valid UTC timestamp`);
   const date = new Date(value);
-  if (Number.isNaN(date.valueOf()))
+  if (
+    Number.isNaN(date.valueOf()) ||
+    date.getUTCFullYear() !== Number(match[1]) ||
+    date.getUTCMonth() + 1 !== Number(match[2]) ||
+    date.getUTCDate() !== Number(match[3]) ||
+    date.getUTCHours() !== Number(match[4]) ||
+    date.getUTCMinutes() !== Number(match[5]) ||
+    date.getUTCSeconds() !== Number(match[6])
+  )
     throw new Error(`${field} must be a valid UTC timestamp`);
   return value;
 }

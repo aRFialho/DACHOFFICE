@@ -163,4 +163,17 @@ describe("simulatePricing", () => {
       findings: [expect.objectContaining({ type: "cost_missing" })],
     });
   });
+
+  it("rejects impossible calendar dates instead of letting JavaScript normalize them", () => {
+    expect(() =>
+      simulatePricing(
+        input({
+          request: {
+            ...input().request,
+            periodStart: "2026-02-30T00:00:00.000Z",
+          },
+        }),
+      ),
+    ).toThrow("periodStart must be a valid UTC timestamp");
+  });
 });
