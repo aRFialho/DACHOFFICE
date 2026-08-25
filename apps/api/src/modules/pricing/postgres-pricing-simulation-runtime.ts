@@ -137,7 +137,8 @@ export class PostgresPricingSimulationRepository implements PricingSimulationRep
         const access = text(grant.access_level);
         return code &&
           grant.revoked_at === null &&
-          (access === "read" || access === "write")
+          (access === "write" ||
+            (code !== "pricing.prepareAction" && access === "read"))
           ? [code]
           : [];
       }),
