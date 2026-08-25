@@ -90,6 +90,9 @@ importers:
       "@dachbyte-office/catalog":
         specifier: workspace:*
         version: link:../../packages/catalog
+      "@dachbyte-office/margin-agent":
+        specifier: workspace:*
+        version: link:../../packages/margin-agent
       pg:
         specifier: 8.23.0
         version: 8.23.0

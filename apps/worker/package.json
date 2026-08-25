@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@dachbyte-office/catalog": "workspace:*",
+    "@dachbyte-office/margin-agent": "workspace:*",
     "pg": "8.23.0"
   }
 }
