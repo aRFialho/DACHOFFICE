@@ -94,4 +94,19 @@ export const registerPricingSimulationRoutes = (
         .send({ error: "pricing_simulation_creation_failed" });
     }
   });
+  server.get("/v1/pricing/simulations/:taskId", async (request, reply) => {
+    const actor = await authenticateAdminMaster(request, options.authService);
+    if (!actor) return reply.code(401).send({ error: "unauthorized" });
+    const taskId = (request.params as { taskId?: unknown }).taskId;
+    if (typeof taskId !== "string")
+      return reply.code(400).send({ error: "invalid_pricing_task_id" });
+    try {
+      const result = await options.pricingSimulationService.getReport(taskId);
+      return result.status === "found"
+        ? reply.code(200).send({ report: result.report })
+        : reply.code(404).send({ error: "pricing_report_not_found" });
+    } catch {
+      return reply.code(400).send({ error: "invalid_pricing_task_id" });
+    }
+  });
 };
