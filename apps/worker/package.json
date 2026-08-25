@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@dachbyte-office/catalog": "workspace:*",
+    "@dachbyte-office/finance": "workspace:*",
     "@dachbyte-office/margin-agent": "workspace:*",
     "@dachbyte-office/pricing-agent": "workspace:*",
     "pg": "8.23.0"

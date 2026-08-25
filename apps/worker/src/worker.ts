@@ -14,15 +14,28 @@ import {
   type CatalogSyncRunner,
 } from "./tray-catalog-worker.js";
 import { createConcreteCatalogSyncWorker } from "./catalog-sync-runtime.js";
+import { createTaskJobDispatcher } from "./task-dispatcher.js";
+import { PricingSimulationTaskHandler } from "./pricing/pricing-simulation-task-handler.js";
+import {
+  PostgresPricingSimulationFactsRepository,
+  PostgresPricingSimulationTaskRepository,
+} from "./pricing/postgres-pricing-simulation-repositories.js";
 
 export const createTaskOutboxWorker = (pool: Pool): TaskOutboxWorker => {
   const marginHandler = new MarginAnalysisTaskHandler({
     repository: new PostgresMarginAnalysisTaskRepository(pool),
     facts: new PostgresMarginAnalysisRepository({ pool }),
   });
+  const pricingHandler = new PricingSimulationTaskHandler({
+    repository: new PostgresPricingSimulationTaskRepository(pool),
+    facts: new PostgresPricingSimulationFactsRepository(pool),
+  });
   return new TaskOutboxWorker(
     new PostgresTaskQueue(pool),
-    new PostgresTaskJobRunner(pool, marginHandler),
+    new PostgresTaskJobRunner(
+      pool,
+      createTaskJobDispatcher([marginHandler, pricingHandler]),
+    ),
   );
 };
 
