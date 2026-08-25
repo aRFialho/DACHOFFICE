@@ -25,6 +25,8 @@ import { registerMarginAnalysisRoutes } from "./modules/margin/margin-analysis-r
 import type { MarginAnalysisService } from "./modules/margin/margin-analysis-service.js";
 import type { MarginTools } from "./modules/margin/margin-tools.js";
 
+import { registerPricingSimulationRoutes } from "./modules/pricing/pricing-simulation-routes.js";
+import type { PricingSimulationEndpoint } from "./modules/pricing/pricing-simulation-routes.js";
 export interface BuildServerOptions {
   authService?: AuthService;
   authTokenConfig?: AuthTokenConfig;
@@ -38,6 +40,7 @@ export interface BuildServerOptions {
   financeTools?: FinanceTools;
   marginAnalysisService?: MarginAnalysisService;
   marginTools?: MarginTools;
+  pricingSimulationService?: PricingSimulationEndpoint;
 }
 
 export const buildServer = (options: BuildServerOptions = {}) => {
@@ -102,6 +105,12 @@ export const buildServer = (options: BuildServerOptions = {}) => {
     registerMarginAnalysisRoutes(server, {
       authService: options.authService,
       marginAnalysisService: options.marginAnalysisService,
+    });
+  }
+  if (options.authService && options.pricingSimulationService) {
+    registerPricingSimulationRoutes(server, {
+      authService: options.authService,
+      pricingSimulationService: options.pricingSimulationService,
     });
   }
   return server;
