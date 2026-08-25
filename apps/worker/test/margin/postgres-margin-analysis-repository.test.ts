@@ -430,4 +430,54 @@ describe("PostgresMarginAnalysisRepository", () => {
       code: "margin_analysis_repository_retryable",
     });
   });
+  it("returns not_found for malformed nested order, finding, and evidence records", async () => {
+    const validRow = (reportJson: Record<string, unknown>) => ({
+      id: "report-1",
+      agent_id: "agent-1",
+      agent_version_id: "agent-version-1",
+      period_start: "2026-08-01T00:00:00.000Z",
+      period_end: "2026-08-31T23:59:59.999Z",
+      filters_json: {},
+      report_json: reportJson,
+      evidence_json: reportJson.evidence,
+      provenance_json: reportJson.provenance,
+      status: "completed",
+      confidence: "REAL",
+      revenue_numeric: "100.0000",
+      cmv_numeric: "20.0000",
+      taxes_numeric: "10.0000",
+      marketplace_fees_numeric: "5.0000",
+      seller_discounts_numeric: "0.0000",
+      logistics_numeric: "2.0000",
+      ads_cost_numeric: "1.0000",
+      other_costs_numeric: "0.0000",
+      contribution_amount_numeric: "62.0000",
+      contribution_percent_numeric: "62.0000",
+      calculated_at: "2026-08-25T00:00:00.000Z",
+      idempotency_key: "margin:task-1",
+    });
+    const malformedReports = [
+      { ...report, orders: [{}] },
+      { ...report, findings: [{ type: "unknown" }] },
+      {
+        ...report,
+        evidence: {
+          ...report.evidence,
+          consultations: [{}],
+        },
+      },
+    ];
+
+    for (const reportJson of malformedReports) {
+      const pool = new RecordingPool({
+        "SELECT id, agent_id": [validRow(reportJson)],
+      });
+      await expect(
+        new PostgresMarginAnalysisRepository({ pool }).getLatestReport(
+          officeId,
+          taskId,
+        ),
+      ).resolves.toEqual({ status: "not_found" });
+    }
+  });
 });

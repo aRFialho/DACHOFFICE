@@ -48,3 +48,15 @@ action was performed.
 - Remediation validation: focused Worker suite 40/40, Worker and Margin Agent
   typechecks, frozen offline install, Prettier check, and `git diff --check`
   passed.
+
+## Nested-report remediation
+
+- Replaced the remaining latest-report JSON casts with structural validation of
+  every nested order report, canonical cost lookup, finding discriminator,
+  unresolved-cost evidence, finance consultation, provenance field, UTC
+  timestamp, decimal amount, evidence-reference list, and normalized filter.
+- Added RED-to-GREEN malformed nested order, finding, and consultation evidence
+  regressions. Each now returns the fixed `not_found` outcome; no malformed
+  nested stored JSON can be returned as a report.
+- Validation: focused Worker suite 41/41, Worker and Margin Agent typechecks,
+  frozen offline install, Prettier check, and `git diff --check` passed.

@@ -297,32 +297,141 @@ function latestReportFromRow(
 
 function marginPeriodReport(value: unknown): MarginPeriodReport | null {
   if (!isRecord(value)) return null;
-  const status =
-    value.status === "completed" || value.status === "no_margin_snapshots"
-      ? value.status
-      : null;
+  const status = reportStatus(value.status);
   const confidence = componentConfidence(value.confidence);
   const totals = marginDreTotals(value.totals);
+  const orders = parsedArray(value.orders, marginOrderReport);
+  const findings = parsedArray(value.findings, marginFinding);
   const evidence = marginEvidence(value.evidence);
   const provenance = marginProvenance(value.provenance);
   if (
     !status ||
     !confidence ||
     !totals ||
+    !orders ||
+    !findings ||
     !evidence ||
-    !provenance ||
-    !Array.isArray(value.orders) ||
-    !Array.isArray(value.findings)
+    !provenance
+  )
+    return null;
+  return { status, confidence, totals, orders, findings, evidence, provenance };
+}
+
+function reportStatus(
+  value: unknown,
+): "completed" | "no_margin_snapshots" | null {
+  return value === "completed" || value === "no_margin_snapshots"
+    ? value
+    : null;
+}
+
+function marginOrderReport(
+  value: unknown,
+): MarginPeriodReport["orders"][number] | null {
+  if (!isRecord(value)) return null;
+  const orderId = text(value.orderId);
+  const channel = normalizedChannel(value.channel);
+  const orderedAt = utcTimestamp(value.orderedAt);
+  const skus = normalizedStringArray(value.skus, normalizedSku, true);
+  const snapshotId = text(value.snapshotId);
+  const snapshotCalculatedAt = utcTimestamp(value.snapshotCalculatedAt);
+  const financeRuleVersionId = text(value.financeRuleVersionId);
+  const calculationVersion = text(value.calculationVersion);
+  const confidence = componentConfidence(value.confidence);
+  const totals = marginDreTotals(value);
+  const evidenceReferences = nonBlankStringArray(
+    value.evidenceReferences,
+    true,
+  );
+  const costs = parsedArray(value.costs, canonicalCostLookup);
+  if (
+    !orderId ||
+    !channel ||
+    !orderedAt ||
+    !skus ||
+    !snapshotId ||
+    !snapshotCalculatedAt ||
+    !financeRuleVersionId ||
+    !calculationVersion ||
+    !confidence ||
+    !totals ||
+    !evidenceReferences ||
+    !costs
   )
     return null;
   return {
-    ...(value as unknown as MarginPeriodReport),
-    status,
+    orderId,
+    channel,
+    orderedAt,
+    skus,
+    snapshotId,
+    snapshotCalculatedAt,
+    financeRuleVersionId,
+    calculationVersion,
     confidence,
-    totals,
-    evidence,
-    provenance,
+    evidenceReferences,
+    costs,
+    ...totals,
   };
+}
+
+function canonicalCostLookup(
+  value: unknown,
+): MarginPeriodReport["orders"][number]["costs"][number] | null {
+  if (!isRecord(value)) return null;
+  const orderId = text(value.orderId);
+  const sku = normalizedSku(value.sku);
+  const evidenceReferences = nonBlankStringArray(
+    value.evidenceReferences,
+    false,
+  );
+  if (!orderId || !sku || !evidenceReferences) return null;
+  if (value.status === "known") {
+    const productId = text(value.productId);
+    const cost = money(value.cost);
+    const costVersionId = text(value.costVersionId);
+    const validAt = utcTimestamp(value.validAt);
+    if (!productId || !cost || !costVersionId || !validAt) return null;
+    return {
+      status: "known",
+      orderId,
+      sku,
+      productId,
+      cost,
+      costVersionId,
+      validAt,
+      evidenceReferences,
+    };
+  }
+  const reason = costReason(value.reason);
+  if (value.status !== "unresolved" || !reason) return null;
+  return { status: "unresolved", orderId, sku, reason, evidenceReferences };
+}
+
+function marginFinding(
+  value: unknown,
+): MarginPeriodReport["findings"][number] | null {
+  if (!isRecord(value)) return null;
+  if (value.type === "negative_contribution_margin") {
+    const contributionAmount = money(value.contributionAmount);
+    const contributionPercent = money(value.contributionPercent);
+    if (value.scope !== "period" || !contributionAmount || !contributionPercent)
+      return null;
+    return {
+      type: "negative_contribution_margin",
+      scope: "period",
+      contributionAmount,
+      contributionPercent,
+    };
+  }
+  if (value.type === "cost_unresolved") {
+    const orderId = text(value.orderId);
+    const sku = normalizedSku(value.sku);
+    const reason = costReason(value.reason);
+    if (!orderId || !sku || !reason) return null;
+    return { type: "cost_unresolved", orderId, sku, reason };
+  }
+  return null;
 }
 
 function marginDreTotals(value: unknown): MarginPeriodReport["totals"] | null {
@@ -341,69 +450,214 @@ function marginDreTotals(value: unknown): MarginPeriodReport["totals"] | null {
   ] as const;
   const amounts = keys.map((key) => money(value[key]));
   if (amounts.some((amount) => amount === null)) return null;
-  return Object.fromEntries(
-    keys.map((key, index) => [key, amounts[index]!]),
-  ) as unknown as MarginPeriodReport["totals"];
+  return {
+    revenue: amounts[0]!,
+    cmv: amounts[1]!,
+    taxes: amounts[2]!,
+    marketplaceFees: amounts[3]!,
+    sellerDiscounts: amounts[4]!,
+    logistics: amounts[5]!,
+    adsCost: amounts[6]!,
+    otherCosts: amounts[7]!,
+    contributionAmount: amounts[8]!,
+    contributionPercent: amounts[9]!,
+  };
 }
 
 function marginEvidence(value: unknown): MarginPeriodReport["evidence"] | null {
+  if (!isRecord(value)) return null;
+  const unresolvedCosts = parsedArray(
+    value.unresolvedCosts,
+    unresolvedCostEvidence,
+  );
+  const consultations = parsedArray(value.consultations, financeConsultation);
+  return unresolvedCosts && consultations
+    ? { unresolvedCosts, consultations }
+    : null;
+}
+
+function unresolvedCostEvidence(
+  value: unknown,
+): MarginPeriodReport["evidence"]["unresolvedCosts"][number] | null {
+  if (!isRecord(value)) return null;
+  const orderId = text(value.orderId);
+  const sku = normalizedSku(value.sku);
+  const reason = costReason(value.reason);
+  const evidenceReferences = nonBlankStringArray(
+    value.evidenceReferences,
+    false,
+  );
+  return orderId && sku && reason && evidenceReferences
+    ? { orderId, sku, reason, evidenceReferences }
+    : null;
+}
+
+function financeConsultation(
+  value: unknown,
+): MarginPeriodReport["evidence"]["consultations"][number] | null {
+  if (!isRecord(value)) return null;
+  const consultationId = text(value.consultationId);
+  const requestedAt = utcTimestamp(value.requestedAt);
+  const evidenceReferences = nonBlankStringArray(
+    value.evidenceReferences,
+    true,
+  );
+  const reason =
+    value.reason === "missing_classification" ||
+    value.reason === "ambiguous_classification"
+      ? value.reason
+      : null;
   if (
-    !isRecord(value) ||
-    !Array.isArray(value.unresolvedCosts) ||
-    !Array.isArray(value.consultations)
+    value.status !== "requested" ||
+    !consultationId ||
+    !requestedAt ||
+    !reason ||
+    !evidenceReferences
   )
     return null;
-  return value as unknown as MarginPeriodReport["evidence"];
+  return {
+    consultationId,
+    status: "requested",
+    reason,
+    requestedAt,
+    evidenceReferences,
+  };
 }
 
 function marginProvenance(
   value: unknown,
 ): MarginPeriodReport["provenance"] | null {
   if (!isRecord(value)) return null;
-  const requiredText = [
-    value.officeId,
-    value.taskId,
-    value.agentId,
-    value.agentVersionId,
-  ].map(text);
-  const periodStart = isoTimestamp(value.periodStart);
-  const periodEnd = isoTimestamp(value.periodEnd);
-  const arrays = [
-    value.snapshotIds,
+  const officeId = text(value.officeId);
+  const taskId = text(value.taskId);
+  const agentId = text(value.agentId);
+  const agentVersionId = text(value.agentVersionId);
+  const periodStart = utcTimestamp(value.periodStart);
+  const periodEnd = utcTimestamp(value.periodEnd);
+  const snapshotIds = nonBlankStringArray(value.snapshotIds, false);
+  const financeRuleVersionIds = nonBlankStringArray(
     value.financeRuleVersionIds,
+    false,
+  );
+  const calculationVersions = nonBlankStringArray(
     value.calculationVersions,
-    value.snapshotCalculatedAts,
+    false,
+  );
+  const snapshotCalculatedAts = timestampArray(value.snapshotCalculatedAts);
+  const evidenceReferences = nonBlankStringArray(
     value.evidenceReferences,
-  ].map(stringArray);
-  const filters = value.filters;
+    false,
+  );
+  const filters =
+    value.filters === undefined ? undefined : marginFilters(value.filters);
   if (
-    requiredText.some((item) => !item) ||
+    !officeId ||
+    !taskId ||
+    !agentId ||
+    !agentVersionId ||
     !periodStart ||
     !periodEnd ||
     Date.parse(periodEnd) < Date.parse(periodStart) ||
-    arrays.some((item) => item === null) ||
-    (filters !== undefined && !isRecord(filters))
+    !snapshotIds ||
+    !financeRuleVersionIds ||
+    !calculationVersions ||
+    !snapshotCalculatedAts ||
+    !evidenceReferences ||
+    (value.filters !== undefined && filters === null)
   )
     return null;
-  return {
-    ...(value as unknown as MarginPeriodReport["provenance"]),
-    officeId: requiredText[0]!,
-    taskId: requiredText[1]!,
-    agentId: requiredText[2]!,
-    agentVersionId: requiredText[3]!,
+  if (filters === null) return null;
+  const provenance = {
+    officeId,
+    taskId,
+    agentId,
+    agentVersionId,
     periodStart,
     periodEnd,
-    snapshotIds: arrays[0]!,
-    financeRuleVersionIds: arrays[1]!,
-    calculationVersions: arrays[2]!,
-    snapshotCalculatedAts: arrays[3]!,
-    evidenceReferences: arrays[4]!,
+    snapshotIds,
+    financeRuleVersionIds,
+    calculationVersions,
+    snapshotCalculatedAts,
+    evidenceReferences,
+  };
+  return filters === undefined ? provenance : { ...provenance, filters };
+}
+
+function marginFilters(
+  value: unknown,
+): NonNullable<MarginPeriodReport["provenance"]["filters"]> | null {
+  if (!isRecord(value)) return null;
+  const channels =
+    value.channels === undefined
+      ? undefined
+      : normalizedStringArray(value.channels, normalizedChannel, true);
+  const skus =
+    value.skus === undefined
+      ? undefined
+      : normalizedStringArray(value.skus, normalizedSku, true);
+  if (channels === null || skus === null) return null;
+  if (channels === undefined && skus === undefined) return null;
+  return {
+    ...(channels === undefined ? {} : { channels }),
+    ...(skus === undefined ? {} : { skus }),
   };
 }
 
-function stringArray(value: unknown): string[] | null {
-  return Array.isArray(value) && value.every((item) => text(item) !== null)
-    ? value.map((item) => item as string)
+function costReason(value: unknown): "missing_cost" | "ambiguous_cost" | null {
+  return value === "missing_cost" || value === "ambiguous_cost" ? value : null;
+}
+
+function parsedArray<T>(
+  value: unknown,
+  parser: (value: unknown) => T | null,
+): T[] | null {
+  if (!Array.isArray(value)) return null;
+  const parsed = value.map(parser);
+  return parsed.every((item): item is T => item !== null) ? parsed : null;
+}
+
+function nonBlankStringArray(
+  value: unknown,
+  requireNonEmpty: boolean,
+): string[] | null {
+  if (!Array.isArray(value)) return null;
+  const values = value.map(text);
+  if (
+    values.some((item) => item === null) ||
+    (requireNonEmpty && values.length === 0)
+  )
+    return null;
+  const parsed = values as string[];
+  return new Set(parsed).size === parsed.length ? parsed : null;
+}
+
+function normalizedStringArray(
+  value: unknown,
+  parser: (value: unknown) => string | null,
+  requireNonEmpty: boolean,
+): string[] | null {
+  if (!Array.isArray(value)) return null;
+  const values = value.map(parser);
+  if (
+    values.some((item) => item === null) ||
+    (requireNonEmpty && values.length === 0)
+  )
+    return null;
+  const parsed = values as string[];
+  return new Set(parsed).size === parsed.length ? parsed : null;
+}
+
+function timestampArray(value: unknown): string[] | null {
+  if (!Array.isArray(value)) return null;
+  const values = value.map(utcTimestamp);
+  if (values.some((item) => item === null)) return null;
+  const parsed = values as string[];
+  return new Set(parsed).size === parsed.length ? parsed : null;
+}
+
+function utcTimestamp(value: unknown): string | null {
+  return typeof value === "string" && value.endsWith("Z")
+    ? isoTimestamp(value)
     : null;
 }
 function snapshotFromRow(row: SqlRow): PersistedOrderMargin[] {
