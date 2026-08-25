@@ -75,8 +75,8 @@ describe("finance margin migration", () => {
   });
 
   it("indexes fee rules by their finance rule version", () => {
-    expect(migration).toContain(
-      "CREATE INDEX IF NOT EXISTS channel_fee_rule_finance_rule_version_idx\n  ON channel_fee_rule (finance_rule_version_id, channel, valid_from, valid_to);",
+    expect(migration).toMatch(
+      /CREATE INDEX IF NOT EXISTS channel_fee_rule_finance_rule_version_idx\r?\n\s+ON channel_fee_rule \(finance_rule_version_id, channel, valid_from, valid_to\);/,
     );
   });
 
