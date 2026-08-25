@@ -27,6 +27,8 @@ import type { MarginTools } from "./modules/margin/margin-tools.js";
 
 import { registerPricingSimulationRoutes } from "./modules/pricing/pricing-simulation-routes.js";
 import type { PricingSimulationEndpoint } from "./modules/pricing/pricing-simulation-routes.js";
+import { registerSupplierPriceTableRoutes } from "./modules/pricing/supplier-price-table-routes.js";
+import type { SupplierPriceTableImportEndpoint } from "./modules/pricing/supplier-price-table-routes.js";
 export interface BuildServerOptions {
   authService?: AuthService;
   authTokenConfig?: AuthTokenConfig;
@@ -41,6 +43,7 @@ export interface BuildServerOptions {
   marginAnalysisService?: MarginAnalysisService;
   marginTools?: MarginTools;
   pricingSimulationService?: PricingSimulationEndpoint;
+  supplierPriceTableImportService?: SupplierPriceTableImportEndpoint;
 }
 
 export const buildServer = (options: BuildServerOptions = {}) => {
@@ -111,6 +114,12 @@ export const buildServer = (options: BuildServerOptions = {}) => {
     registerPricingSimulationRoutes(server, {
       authService: options.authService,
       pricingSimulationService: options.pricingSimulationService,
+    });
+  }
+  if (options.authService && options.supplierPriceTableImportService) {
+    registerSupplierPriceTableRoutes(server, {
+      authService: options.authService,
+      supplierPriceTableImportService: options.supplierPriceTableImportService,
     });
   }
   return server;

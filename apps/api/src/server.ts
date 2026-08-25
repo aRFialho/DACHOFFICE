@@ -18,6 +18,8 @@ import { MarginAnalysisService } from "./modules/margin/margin-analysis-service.
 import { createMarginAnalysisRuntime } from "./modules/margin/postgres-margin-analysis-runtime.js";
 import { PricingSimulationService } from "./modules/pricing/pricing-simulation-service.js";
 import { PostgresPricingSimulationRepository } from "./modules/pricing/postgres-pricing-simulation-runtime.js";
+import { SupplierPriceTableImportService } from "./modules/pricing/supplier-price-table-import-service.js";
+import { PostgresSupplierPriceTableImportRepository } from "./modules/pricing/postgres-supplier-price-table-import-repository.js";
 
 const runtimeConfig = loadAuthRuntimeConfig(process.env);
 const pool = new pg.Pool({ connectionString: runtimeConfig.databaseUrl });
@@ -41,6 +43,9 @@ const marginAnalysisService = new MarginAnalysisService(
 const pricingSimulationService = new PricingSimulationService(
   new PostgresPricingSimulationRepository(pool),
 );
+const supplierPriceTableImportService = new SupplierPriceTableImportService(
+  new PostgresSupplierPriceTableImportRepository(pool),
+);
 const server = buildServer({
   authService,
   authTokenConfig: runtimeConfig.tokenConfig,
@@ -55,8 +60,8 @@ const server = buildServer({
   marginAnalysisService,
   marginTools: marginRuntime.marginTools,
   pricingSimulationService,
+  supplierPriceTableImportService,
 });
-
 server.addHook("onClose", async () => {
   await pool.end();
 });
