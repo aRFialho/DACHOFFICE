@@ -16,6 +16,8 @@ import { createStoreGeneralRuntime } from "./modules/catalog/postgres-store-gene
 import { createFinanceRuntime } from "./modules/finance/postgres-finance-runtime.js";
 import { MarginAnalysisService } from "./modules/margin/margin-analysis-service.js";
 import { createMarginAnalysisRuntime } from "./modules/margin/postgres-margin-analysis-runtime.js";
+import { PricingSimulationService } from "./modules/pricing/pricing-simulation-service.js";
+import { PostgresPricingSimulationRepository } from "./modules/pricing/postgres-pricing-simulation-runtime.js";
 
 const runtimeConfig = loadAuthRuntimeConfig(process.env);
 const pool = new pg.Pool({ connectionString: runtimeConfig.databaseUrl });
@@ -36,6 +38,9 @@ const marginRuntime = createMarginAnalysisRuntime(pool);
 const marginAnalysisService = new MarginAnalysisService(
   marginRuntime.marginAnalysisRepository,
 );
+const pricingSimulationService = new PricingSimulationService(
+  new PostgresPricingSimulationRepository(pool),
+);
 const server = buildServer({
   authService,
   authTokenConfig: runtimeConfig.tokenConfig,
@@ -49,6 +54,7 @@ const server = buildServer({
   financeTools: financeRuntime.financeTools,
   marginAnalysisService,
   marginTools: marginRuntime.marginTools,
+  pricingSimulationService,
 });
 
 server.addHook("onClose", async () => {
