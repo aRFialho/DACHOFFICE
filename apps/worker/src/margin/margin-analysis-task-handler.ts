@@ -96,7 +96,7 @@ export class MarginAnalysisTaskHandler {
       });
       if (!authorized) throw taskFailure("margin_analysis_task_unauthorized");
 
-      if (!(await transaction.claimDelivery(job.idempotencyKey))) return false;
+      if (!(await transaction.claimDelivery(job.idempotencyKey))) return true;
       if (task.status !== "queued")
         throw taskFailure("margin_analysis_task_not_queued");
 

@@ -5,6 +5,7 @@ import {
   type MarginAnalysisTaskRepository,
   type MarginAnalysisTaskTransaction,
 } from "../../src/margin/margin-analysis-task-handler.js";
+import { TaskOutboxWorker, type TaskQueue } from "../../src/task-worker.js";
 
 const job = {
   outboxId: "outbox-1",
@@ -152,7 +153,7 @@ describe("MarginAnalysisTaskHandler", () => {
     await expect(handler.canHandle(job)).resolves.toBe(true);
     await expect(handler.run(job)).resolves.toBe(true);
     repository.transaction.deliveryClaimed = false;
-    await expect(handler.run(job)).resolves.toBe(false);
+    await expect(handler.run(job)).resolves.toBe(true);
 
     expect(sourceFacts.calls).toEqual(["snapshots:office-1", "costs:office-1"]);
     expect(repository.transaction.calls).toEqual([
@@ -184,6 +185,32 @@ describe("MarginAnalysisTaskHandler", () => {
     ]);
   });
 
+  it("acknowledges an already-completed delivery without repeating task or report work", async () => {
+    const repository = new FakeTaskRepository();
+    repository.transaction.deliveryClaimed = false;
+    const sourceFacts = facts();
+    const handler = new MarginAnalysisTaskHandler({
+      repository,
+      facts: sourceFacts,
+      now: () => "2026-08-25T12:00:00.000Z",
+    });
+    const settled: boolean[] = [];
+    const queue: TaskQueue = {
+      claimNext: async () => job,
+      settle: async (_job, delivered) => {
+        settled.push(delivered);
+      },
+    };
+
+    await expect(
+      new TaskOutboxWorker(queue, handler).consumeOne(),
+    ).resolves.toBe(true);
+
+    expect(settled).toEqual([true]);
+    expect(sourceFacts.calls).toEqual([]);
+    expect(repository.transaction.reports).toEqual([]);
+    expect(repository.transaction.completions).toBe(0);
+  });
   it("preserves ESTIMATED and explicit no-data engine outcomes", async () => {
     const estimatedRepository = new FakeTaskRepository();
     const estimated = new MarginAnalysisTaskHandler({

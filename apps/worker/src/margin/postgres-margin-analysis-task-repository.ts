@@ -13,7 +13,10 @@ type ContextRow = { context_key: string; value_text: string };
 type AgentRow = { lifecycle_status: string; active_version_id: string };
 type GrantRow = { tool_code: string; access_level: string };
 type DeliveryRow = { idempotency_key: string };
-type ReportRow = { id: string; idempotency_key: string };
+type ReportRow = { id: string; idempotency_key: string } & Record<
+  string,
+  unknown
+>;
 
 export class PostgresMarginAnalysisTaskRepository implements MarginAnalysisTaskRepository {
   constructor(private readonly pool: Pool) {}
@@ -145,6 +148,8 @@ class PostgresMarginAnalysisTaskTransaction implements MarginAnalysisTaskTransac
     status: "created" | "unchanged" | "conflict";
     reportId: string;
   }> {
+    const facts = canonicalReportFacts(input);
+    if (!facts) return { status: "conflict", reportId: "" };
     const { report } = input;
     const inserted = await this.client.query<{ id: string }>(
       `INSERT INTO margin_analysis_report (
@@ -190,17 +195,26 @@ class PostgresMarginAnalysisTaskTransaction implements MarginAnalysisTaskTransac
     if (reportId) return { status: "created", reportId };
 
     const existing = await this.client.query<ReportRow>(
-      `SELECT id, idempotency_key
+      `SELECT id, agent_id, agent_version_id, period_start::text AS period_start,
+                period_end::text AS period_end, filters_json, report_json, evidence_json,
+                provenance_json, status, confidence, revenue_numeric::text AS revenue_numeric,
+                cmv_numeric::text AS cmv_numeric, taxes_numeric::text AS taxes_numeric,
+                marketplace_fees_numeric::text AS marketplace_fees_numeric,
+                seller_discounts_numeric::text AS seller_discounts_numeric,
+                logistics_numeric::text AS logistics_numeric, ads_cost_numeric::text AS ads_cost_numeric,
+                other_costs_numeric::text AS other_costs_numeric,
+                contribution_amount_numeric::text AS contribution_amount_numeric,
+                contribution_percent_numeric::text AS contribution_percent_numeric,
+                calculated_at::text AS calculated_at, idempotency_key
        FROM margin_analysis_report
        WHERE office_id = $1 AND task_id = $2
        FOR SHARE`,
       [report.provenance.officeId, report.provenance.taskId],
     );
     const row = existing.rows[0];
-    if (!row) return { status: "conflict", reportId: "" };
-    return row.idempotency_key === input.idempotencyKey
-      ? { status: "unchanged", reportId: row.id }
-      : { status: "conflict", reportId: row.id };
+    if (!row || !sameCanonicalReportFacts(facts, row))
+      return { status: "conflict", reportId: row?.id ?? "" };
+    return { status: "unchanged", reportId: row.id };
   }
 
   async completeTask(taskId: string): Promise<void> {
@@ -226,4 +240,88 @@ class PostgresMarginAnalysisTaskTransaction implements MarginAnalysisTaskTransac
       );
     }
   }
+}
+
+type CanonicalReportFacts = Record<string, unknown>;
+
+function canonicalReportFacts(
+  input: PersistMarginTaskReportInput,
+): CanonicalReportFacts | null {
+  const { report } = input;
+  const calculatedAt = isoTimestamp(input.calculatedAt);
+  const periodStart = isoTimestamp(report.provenance.periodStart);
+  const periodEnd = isoTimestamp(report.provenance.periodEnd);
+  if (
+    !calculatedAt ||
+    !periodStart ||
+    !periodEnd ||
+    Date.parse(periodEnd) < Date.parse(periodStart) ||
+    !nonBlank(report.provenance.officeId) ||
+    !nonBlank(report.provenance.taskId) ||
+    !nonBlank(report.provenance.agentId) ||
+    !nonBlank(report.provenance.agentVersionId) ||
+    !nonBlank(input.idempotencyKey) ||
+    input.idempotencyKey.length > 200
+  ) {
+    return null;
+  }
+  return {
+    agent_id: report.provenance.agentId,
+    agent_version_id: report.provenance.agentVersionId,
+    period_start: periodStart,
+    period_end: periodEnd,
+    filters_json: report.provenance.filters ?? {},
+    report_json: report,
+    evidence_json: report.evidence,
+    provenance_json: report.provenance,
+    status: report.status,
+    confidence: report.confidence,
+    revenue_numeric: report.totals.revenue,
+    cmv_numeric: report.totals.cmv,
+    taxes_numeric: report.totals.taxes,
+    marketplace_fees_numeric: report.totals.marketplaceFees,
+    seller_discounts_numeric: report.totals.sellerDiscounts,
+    logistics_numeric: report.totals.logistics,
+    ads_cost_numeric: report.totals.adsCost,
+    other_costs_numeric: report.totals.otherCosts,
+    contribution_amount_numeric: report.totals.contributionAmount,
+    contribution_percent_numeric: report.totals.contributionPercent,
+    calculated_at: calculatedAt,
+    idempotency_key: input.idempotencyKey,
+  };
+}
+
+function sameCanonicalReportFacts(
+  expected: CanonicalReportFacts,
+  actual: Record<string, unknown>,
+): boolean {
+  return Object.entries(expected).every(([key, value]) => {
+    const stored = actual[key];
+    if (key.endsWith("_json")) return stableJson(value) === stableJson(stored);
+    if (key.endsWith("_at") || key === "period_start" || key === "period_end")
+      return isoTimestamp(stored) === value;
+    return stored === value;
+  });
+}
+
+function nonBlank(value: string): boolean {
+  return value.trim() !== "";
+}
+
+function isoTimestamp(value: unknown): string | null {
+  if (value === null || value === undefined) return null;
+  const date = value instanceof Date ? value : new Date(String(value));
+  return Number.isNaN(date.valueOf()) ? null : date.toISOString();
+}
+
+function stableJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(stableJson).join(",")}]`;
+  if (value !== null && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    return `{${Object.keys(record)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${stableJson(record[key])}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(value);
 }

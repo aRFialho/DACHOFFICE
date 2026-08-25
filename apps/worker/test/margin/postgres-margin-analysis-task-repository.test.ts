@@ -36,6 +36,7 @@ type Query = { text: string; values?: readonly unknown[] };
 class RecordingPool {
   readonly queries: Query[] = [];
   taskFound = true;
+  existingReport: Record<string, unknown> | undefined;
   readonly client = {
     query: async (text: string, values?: readonly unknown[]) => {
       this.queries.push({ text, ...(values === undefined ? {} : { values }) });
@@ -81,7 +82,14 @@ class RecordingPool {
         return { rows: [{ idempotency_key: job.idempotencyKey }] };
       }
       if (text.includes("INSERT INTO margin_analysis_report")) {
-        return { rows: [{ id: "report-1" }] };
+        return {
+          rows: this.existingReport === undefined ? [{ id: "report-1" }] : [],
+        };
+      }
+      if (text.includes("SELECT id, agent_id")) {
+        return {
+          rows: this.existingReport === undefined ? [] : [this.existingReport],
+        };
       }
       if (text.includes("UPDATE task")) return { rows: [{ id: job.taskId }] };
       return { rows: [] };
@@ -180,5 +188,34 @@ describe("PostgresMarginAnalysisTaskRepository", () => {
     expect(
       pool.queries.some(({ text }) => text.includes("worker_job_delivery")),
     ).toBe(false);
+  });
+  it("rolls back a same-key report replay when canonical persisted facts differ", async () => {
+    const pool = new RecordingPool();
+    pool.existingReport = {
+      id: "report-1",
+      idempotency_key: job.idempotencyKey,
+      revenue_numeric: "999.0000",
+    };
+    const handler = new MarginAnalysisTaskHandler({
+      repository: new PostgresMarginAnalysisTaskRepository(pool as never),
+      facts: facts([]),
+      now: () => "2026-08-25T12:00:00.000Z",
+    });
+
+    await expect(handler.run(job)).rejects.toThrow(
+      "margin_analysis_report_conflict",
+    );
+
+    expect(
+      pool.queries.filter(({ text }) =>
+        text.includes("INSERT INTO task_event"),
+      ),
+    ).toHaveLength(0);
+    expect(pool.queries.some(({ text }) => text.includes("UPDATE task"))).toBe(
+      false,
+    );
+    expect(pool.queries.map((query) => query.text)).toEqual(
+      expect.arrayContaining(["BEGIN", "ROLLBACK"]),
+    );
   });
 });
