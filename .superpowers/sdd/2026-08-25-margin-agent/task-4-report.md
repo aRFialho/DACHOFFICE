@@ -29,3 +29,16 @@
 
 No environment, migration, provider, external-write, credential, or database
 deployment action was performed.
+
+## Review remediation
+
+- Replaced the permissive `Date.parse`/suffix timestamp check with a strict
+  ISO-8601 UTC parser that requires complete date/time/seconds and trailing
+  `Z`, permits optional fractional seconds, and verifies calendar components
+  after parsing. Invalid normalized calendar dates cannot enter immutable task
+  context.
+- Added RED-to-GREEN HTTP/service regressions for space-separated, date-only,
+  impossible-calendar-date, and non-`Z` period values. Each rejects before
+  eligibility, task, outbox, or audit writes.
+- Remediation validation: focused timestamp/route/tool tests 12/12, full API
+  suite 66/66, API typecheck, frozen offline install, Prettier, and diff check

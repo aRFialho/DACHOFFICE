@@ -165,5 +165,20 @@ const marginTaskContext = (
     : [{ key: "skus", value: JSON.stringify(input.filters.skus) }]),
 ];
 
-const utcTimestamp = (value: string): boolean =>
-  value.endsWith("Z") && !Number.isNaN(Date.parse(value));
+const strictUtcTimestamp =
+  /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?Z$/;
+
+const utcTimestamp = (value: string): boolean => {
+  const match = strictUtcTimestamp.exec(value);
+  if (!match) return false;
+  const date = new Date(value);
+  if (Number.isNaN(date.valueOf())) return false;
+  return (
+    date.getUTCFullYear() === Number(match[1]) &&
+    date.getUTCMonth() + 1 === Number(match[2]) &&
+    date.getUTCDate() === Number(match[3]) &&
+    date.getUTCHours() === Number(match[4]) &&
+    date.getUTCMinutes() === Number(match[5]) &&
+    date.getUTCSeconds() === Number(match[6])
+  );
+};
