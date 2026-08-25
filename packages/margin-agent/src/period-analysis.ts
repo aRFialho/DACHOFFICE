@@ -16,6 +16,7 @@ export function analyzeMarginPeriod(
   input: MarginPeriodAnalysisInput,
 ): MarginPeriodReport {
   const parsed = assertMarginPeriodAnalysisInput(input);
+  assertUniqueSnapshotIds(parsed.orders);
   const matchingOrders = parsed.orders
     .filter((order) => matchesRequest(order, parsed.request))
     .sort(compareOrders);
@@ -74,6 +75,15 @@ export function analyzeMarginPeriod(
       evidenceReferences,
     },
   };
+}
+
+function assertUniqueSnapshotIds(orders: PersistedOrderMargin[]): void {
+  const snapshotIds = new Set<string>();
+  for (const order of orders) {
+    if (snapshotIds.has(order.snapshotId))
+      throw new Error(`duplicate margin snapshot ID: ${order.snapshotId}`);
+    snapshotIds.add(order.snapshotId);
+  }
 }
 
 function matchesRequest(

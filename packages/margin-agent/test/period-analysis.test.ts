@@ -138,7 +138,11 @@ describe("analyzeMarginPeriod", () => {
       input({
         orders: [
           order(),
-          order({ orderId: "order-2", confidence: "ESTIMATED" }),
+          order({
+            orderId: "order-2",
+            snapshotId: "snapshot-2",
+            confidence: "ESTIMATED",
+          }),
         ],
       }),
     );
@@ -284,4 +288,19 @@ describe("analyzeMarginPeriod", () => {
     expect(highPrecision.totals.contributionPercent).toBe("100.0000");
     expect(negative.totals.contributionPercent).toBe("-0.0001");
   });
+});
+it("rejects a repeated immutable snapshot before it can inflate the DRE", () => {
+  expect(() =>
+    analyzeMarginPeriod(
+      input({
+        orders: [
+          order(),
+          order({
+            orderId: "order-2",
+            snapshotId: "snapshot-1",
+          }),
+        ],
+      }),
+    ),
+  ).toThrow("duplicate margin snapshot ID: snapshot-1");
 });
