@@ -10,7 +10,6 @@ import {
 } from "./contracts.js";
 import {
   ceilDivide,
-  MONEY_SCALE,
   PERCENT_SCALE,
   roundHalfUp,
   toMoney,

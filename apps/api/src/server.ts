@@ -16,9 +16,9 @@ import { createStoreGeneralRuntime } from "./modules/catalog/postgres-store-gene
 import { createFinanceRuntime } from "./modules/finance/postgres-finance-runtime.js";
 import { MarginAnalysisService } from "./modules/margin/margin-analysis-service.js";
 import { createMarginAnalysisRuntime } from "./modules/margin/postgres-margin-analysis-runtime.js";
-import { PricingSimulationService } from "./modules/pricing/pricing-simulation-service.js";
-import { PostgresPricingSimulationRepository } from "./modules/pricing/postgres-pricing-simulation-runtime.js";
+import { createPricingSimulationRuntime } from "./modules/pricing/postgres-pricing-simulation-runtime.js";
 import { SupplierPriceTableImportService } from "./modules/pricing/supplier-price-table-import-service.js";
+import { PricingSimulationService } from "./modules/pricing/pricing-simulation-service.js";
 import { PostgresSupplierPriceTableImportRepository } from "./modules/pricing/postgres-supplier-price-table-import-repository.js";
 
 const runtimeConfig = loadAuthRuntimeConfig(process.env);
@@ -40,9 +40,7 @@ const marginRuntime = createMarginAnalysisRuntime(pool);
 const marginAnalysisService = new MarginAnalysisService(
   marginRuntime.marginAnalysisRepository,
 );
-const pricingSimulationService = new PricingSimulationService(
-  new PostgresPricingSimulationRepository(pool),
-);
+const pricingRuntime = createPricingSimulationRuntime(pool);
 const supplierPriceTableImportService = new SupplierPriceTableImportService(
   new PostgresSupplierPriceTableImportRepository(pool),
 );
@@ -59,7 +57,10 @@ const server = buildServer({
   financeTools: financeRuntime.financeTools,
   marginAnalysisService,
   marginTools: marginRuntime.marginTools,
-  pricingSimulationService,
+  pricingSimulationService: new PricingSimulationService(
+    pricingRuntime.pricingSimulationRepository,
+  ),
+  pricingTools: pricingRuntime.pricingTools,
   supplierPriceTableImportService,
 });
 server.addHook("onClose", async () => {

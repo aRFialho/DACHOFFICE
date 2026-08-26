@@ -164,9 +164,7 @@ export class PostgresPricingSimulationTaskRepository implements PricingSimulatio
       await client.query("COMMIT");
       return result;
     } catch (error) {
-      try {
-        await client.query("ROLLBACK");
-      } catch {}
+      await client.query("ROLLBACK").catch(() => undefined);
       throw error;
     } finally {
       client.release();

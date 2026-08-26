@@ -17,6 +17,7 @@ const matchingHandler = async (
   handlers: readonly TaskJobDispatcher[],
   job: TaskOutboxJob,
 ): Promise<TaskJobDispatcher | undefined> => {
-  for (const handler of handlers) if (await handler.canHandle(job)) return handler;
+  for (const handler of handlers)
+    if (await handler.canHandle(job)) return handler;
   return undefined;
 };

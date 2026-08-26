@@ -842,10 +842,6 @@ function unresolvedCost(
   };
 }
 
-function missingCosts(keys: CostKey[]): CanonicalCostLookup[] {
-  return keys.map((key) => unresolvedCost(key, "missing_cost", []));
-}
-
 function costEvidenceReferences(row: SqlRow): string[] {
   const costId = text(row.cost_snapshot_id);
   const sourceReference = text(row.source_reference);

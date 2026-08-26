@@ -1,5 +1,15 @@
 import { randomUUID } from "node:crypto";
 import type { Pool } from "pg";
+import type { AgentLifecycleStatus } from "../admin/write-gate.js";
+import type { PolicyEvaluationContext } from "../policy/tool-authorization-service.js";
+import { ToolAuthorizationService } from "../policy/tool-authorization-service.js";
+import { ToolRegistry } from "../tools/tool-registry.js";
+import {
+  createPricingTools,
+  pricingToolDefinitions,
+  type PricingPolicyEvaluationContextLoader,
+  type PricingReportReadRepository,
+} from "./pricing-tools.js";
 import type { PricingSimulationRepository } from "./pricing-simulation-service.js";
 type Row = Record<string, unknown>;
 type Queryable = {
@@ -10,6 +20,11 @@ type Queryable = {
 };
 type Transaction = Queryable & { release(): void };
 type SqlPool = Queryable & { connect?: () => Promise<Transaction> };
+type PolicyRow = Row & {
+  requested_version_id: unknown;
+  trust_ceiling: unknown;
+  trust_level: unknown;
+};
 const codes = [
   "products.get",
   "products.getCost",
@@ -116,6 +131,15 @@ export class PostgresPricingSimulationRepository implements PricingSimulationRep
       ? { status: "found" as const, report: result.rows[0].report_json }
       : { status: "not_found" as const };
   }
+  async getReportForOfficeTask(officeId: string, taskId: string) {
+    const result = await this.pool.query<{ report_json: unknown } & Row>(
+      "SELECT report_json FROM pricing_simulation_report report JOIN task ON task.id = report.task_id AND task.office_id = report.office_id WHERE task.id = $1 AND task.office_id = $2 LIMIT 1",
+      [taskId, officeId],
+    );
+    return result.rows[0]
+      ? { status: "found" as const, report: result.rows[0].report_json }
+      : { status: "not_found" as const };
+  }
   private async eligibility(queryable: Queryable, row: Row | undefined) {
     const officeId = text(row?.office_id),
       agentId = text(row?.agent_id),
@@ -145,6 +169,99 @@ export class PostgresPricingSimulationRepository implements PricingSimulationRep
     };
   }
 }
+export class PostgresPricingPolicyEvaluationContextLoader implements PricingPolicyEvaluationContextLoader {
+  constructor(private readonly pool: Queryable) {}
+
+  async load(taskId: string): Promise<PolicyEvaluationContext | null> {
+    const result = await this.pool.query<PolicyRow>(
+      `SELECT t.office_id, t.assigned_agent_id AS agent_id, a.lifecycle_status,
+              a.active_version_id, requested.value_text AS requested_version_id,
+              version.trust_ceiling, office.trust_level
+       FROM task t
+       JOIN agent a ON a.id = t.assigned_agent_id AND a.office_id = t.office_id
+       JOIN agent_version version ON version.id = a.active_version_id AND version.agent_id = a.id
+       JOIN office ON office.id = t.office_id
+       JOIN task_context_item requested
+         ON requested.task_id = t.id AND requested.context_key = 'agentVersionId'
+       WHERE t.id = $1 AND t.type = 'pricing.simulation'`,
+      [taskId],
+    );
+    const row = result.rows[0];
+    const officeId = text(row?.office_id);
+    const agentId = text(row?.agent_id);
+    const lifecycleStatus = lifecycle(row?.lifecycle_status);
+    const activeAgentVersionId = text(row?.active_version_id);
+    const requestedAgentVersionId = text(row?.requested_version_id);
+    const officeTrustLevel = trust(row?.trust_level);
+    const agentTrustCeiling = trust(row?.trust_ceiling);
+    if (
+      !officeId ||
+      !agentId ||
+      !lifecycleStatus ||
+      !activeAgentVersionId ||
+      !requestedAgentVersionId ||
+      !officeTrustLevel ||
+      !agentTrustCeiling
+    )
+      return null;
+    const grantsResult = await this.pool.query<Row>(
+      "SELECT tool_code, access_level, revoked_at FROM agent_tool_grant WHERE agent_id = $1",
+      [agentId],
+    );
+    const grants: PolicyEvaluationContext["grants"][number][] = [];
+    for (const grant of grantsResult.rows) {
+      const toolCode = text(grant.tool_code);
+      const accessLevel = grant.access_level;
+      if (!toolCode || (accessLevel !== "read" && accessLevel !== "write"))
+        continue;
+      grants.push({
+        toolCode,
+        accessLevel,
+        revokedAt: grant.revoked_at instanceof Date ? grant.revoked_at : null,
+      });
+    }
+    return {
+      officeId,
+      hasTaskAuthority: true,
+      lifecycleStatus,
+      grants,
+      activeAgentVersionId,
+      requestedAgentVersionId,
+      officeTrustLevel,
+      agentTrustCeiling,
+      policyConditionsSatisfied: true,
+      actionLimitsSatisfied: true,
+    };
+  }
+}
+
+export const createPricingSimulationRuntime = (pool: Pool) => {
+  const repository = new PostgresPricingSimulationRepository(pool);
+  const registry = new ToolRegistry(pricingToolDefinitions);
+  return {
+    pricingSimulationRepository: repository,
+    pricingTools: createPricingTools({
+      repository: repository as PricingReportReadRepository,
+      registry,
+      authorizationService: new ToolAuthorizationService(registry),
+      contextLoader: new PostgresPricingPolicyEvaluationContextLoader(pool),
+    }),
+  };
+};
+
 const text = (value: unknown): string | null =>
   typeof value === "string" && value.trim() !== "" ? value : null;
-void (null as unknown as Pool);
+const lifecycle = (value: unknown): AgentLifecycleStatus | null =>
+  value === "draft" ||
+  value === "active" ||
+  value === "updating" ||
+  value === "suspended" ||
+  value === "archived"
+    ? value
+    : null;
+const trust = (
+  value: unknown,
+): "analytical" | "supervised" | "autonomous" | null =>
+  value === "analytical" || value === "supervised" || value === "autonomous"
+    ? value
+    : null;

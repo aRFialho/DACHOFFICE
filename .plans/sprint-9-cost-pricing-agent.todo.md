@@ -251,3 +251,25 @@ financial calculator.
 - [ ] Independent review accepts code and docs.
 - [ ] Migration 009 is applied only after acceptance and has passing Neon
   postflight health.
+
+## Implementation status ? 2026-08-26
+
+Completed and validated on branch `sprint/09-cost-pricing`:
+
+- Deterministic pricing simulation, supplier table import/mapping, immutable
+  reports/prepared proposals, task queue/worker handling, and task-bound Tool
+  Registry/Policy Engine authorization are implemented.
+- `pricing.getReport` is a tenant-bound `READ` tool and
+  `pricing.prepareAction` is a `PREPARE` policy evaluation only; neither calls
+  a marketplace or other external provider.
+- Migration 009 was previously applied to Neon. API, worker, and pricing-agent
+  tests; builds; frozen offline install; and diff checks pass.
+
+Remaining blocker for 100% completion:
+
+- The required spreadsheet artifact runtime is not available in this session.
+  The governing spreadsheet workflow permits XLSX creation only through its
+  artifact tools, and those tools are not exposed here. No alternative XLSX
+  library was introduced. Additionally, `pricing_workbook_artifact` currently
+  stores metadata only; the later workbook implementation must add bounded
+  PostgreSQL byte storage plus authenticated task-office-bound download tests.

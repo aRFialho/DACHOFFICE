@@ -25,6 +25,7 @@ Review-cycle commits:
 
 - No `.env`, live Tray, Neon, R2, migrations or connected validation was used.
 - `task-4-review.md` is left untracked as review input and intentionally excluded from both commits.
+
 ## Review-cycle 2 (`sprint/04-tray-canonical`)
 
 - Reclaimed catalog outbox leases now transition a stale `running` sync run to `retryable` atomically with the new lease, and an integration-style queue/repository test proves the recovered run can be claimed.

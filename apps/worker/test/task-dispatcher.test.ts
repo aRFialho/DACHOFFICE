@@ -8,8 +8,14 @@ describe("createTaskJobDispatcher", () => {
     const calls: string[] = [];
     const margin = { canHandle: async () => false, run: async () => true };
     const pricing = {
-      canHandle: async () => { calls.push("pricing:can"); return true; },
-      run: async () => { calls.push("pricing:run"); return true; },
+      canHandle: async () => {
+        calls.push("pricing:can");
+        return true;
+      },
+      run: async () => {
+        calls.push("pricing:run");
+        return true;
+      },
     };
     const dispatcher = createTaskJobDispatcher([margin, pricing]);
 
@@ -19,7 +25,9 @@ describe("createTaskJobDispatcher", () => {
   });
 
   it("does not claim generic tasks that no specialized handler recognizes", async () => {
-    const dispatcher = createTaskJobDispatcher([{ canHandle: async () => false, run: async () => true }]);
+    const dispatcher = createTaskJobDispatcher([
+      { canHandle: async () => false, run: async () => true },
+    ]);
     await expect(dispatcher.canHandle(job)).resolves.toBe(false);
     await expect(dispatcher.run(job)).resolves.toBe(false);
   });
