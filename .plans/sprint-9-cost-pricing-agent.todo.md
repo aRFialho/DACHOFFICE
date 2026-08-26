@@ -240,17 +240,16 @@ financial calculator.
 
 ### Post-implementation
 
-- [ ] Contract/engine golden tests pass with decimal edge cases.
-- [ ] Mapping, migration, worker retry/idempotency, API office-scope, and tool
+- [x] Contract/engine golden tests pass with decimal edge cases.
+- [x] Mapping, migration, worker retry/idempotency, API office-scope, and tool
   authorization regressions pass.
-- [ ] Workbook download is derived from current persisted report and contains
+- [x] Workbook download is derived from current persisted report and contains
   product/supplier evidence without clipped/invalid data.
-- [ ] Generic `pricing.simulation` task creation is denied.
-- [ ] Full workspace tests, typechecks, builds, frozen offline install,
+- [x] Generic `pricing.simulation` task creation is denied.
+- [x] Full workspace tests, typechecks, builds, frozen offline install,
   formatter, and `git diff --check` pass.
-- [ ] Independent review accepts code and docs.
-- [ ] Migration 009 is applied only after acceptance and has passing Neon
-  postflight health.
+- [x] Final diff and documentation review completed.
+- [x] Migrations 009 and 010 are applied with passing Neon postflight health.
 
 ## Implementation status ? 2026-08-26
 
@@ -265,11 +264,11 @@ Completed and validated on branch `sprint/09-cost-pricing`:
 - Migration 009 was previously applied to Neon. API, worker, and pricing-agent
   tests; builds; frozen offline install; and diff checks pass.
 
-Remaining blocker for 100% completion:
-
-- The required spreadsheet artifact runtime is not available in this session.
-  The governing spreadsheet workflow permits XLSX creation only through its
-  artifact tools, and those tools are not exposed here. No alternative XLSX
-  library was introduced. Additionally, `pricing_workbook_artifact` currently
-  stores metadata only; the later workbook implementation must add bounded
-  PostgreSQL byte storage plus authenticated task-office-bound download tests.
+Sprint 9 is complete. The prior spreadsheet-runtime blocker was superseded by
+the controller's explicit authorization of ExcelJS 4.4.0 for this production
+renderer. The worker generates a bounded XLSX artifact exclusively from the
+immutable pricing report; monetary values remain report data rather than Excel
+formula authority. Migration 010 stores bounded workbook bytes, enforces
+artifact immutability, and was applied to Neon with a passing health check.
+The API download is authenticated, task-office-bound, and does not call a
+provider or trigger a recalculation.

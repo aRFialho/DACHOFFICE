@@ -140,6 +140,35 @@ export class PostgresPricingSimulationRepository implements PricingSimulationRep
       ? { status: "found" as const, report: result.rows[0].report_json }
       : { status: "not_found" as const };
   }
+  async getWorkbookForTask(taskId: string) {
+    const result = await this.pool.query<
+      { content_bytes: Buffer; media_type: unknown } & Row
+    >(
+      `SELECT artifact.content_bytes, artifact.media_type
+       FROM task
+       JOIN pricing_simulation_report report
+         ON report.task_id = task.id AND report.office_id = task.office_id
+       JOIN pricing_workbook_artifact artifact
+         ON artifact.pricing_simulation_report_id = report.id
+        AND artifact.office_id = report.office_id
+       WHERE task.id = $1
+       LIMIT 1`,
+      [taskId],
+    );
+    const row = result.rows[0];
+    const mediaType = text(row?.media_type);
+    const content = row?.content_bytes;
+    return mediaType ===
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" &&
+      Buffer.isBuffer(content)
+      ? {
+          status: "found" as const,
+          content,
+          mediaType:
+            mediaType as "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        }
+      : { status: "not_found" as const };
+  }
   private async eligibility(queryable: Queryable, row: Row | undefined) {
     const officeId = text(row?.office_id),
       agentId = text(row?.agent_id),

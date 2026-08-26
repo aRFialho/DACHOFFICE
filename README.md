@@ -17,6 +17,11 @@ provider staging validation remains pending. See
 [docs/sprints/07-margin-agent-workflow.md](docs/sprints/07-margin-agent-workflow.md)
 for the contract, safety boundaries, and acceptance evidence.
 
+Sprint 9 Cost and Pricing is complete. Its worker creates a bounded, immutable
+XLSX artifact from the persisted pricing report, and the authenticated download
+is task-office-bound. No spreadsheet formula is a financial authority and no
+marketplace provider is called by the report or download path.
+
 Sprints 0–3 delivered: foundations, Admin/Agent Forge, asynchronous task
 engine, and deterministic Tool Registry + Policy Engine.
 

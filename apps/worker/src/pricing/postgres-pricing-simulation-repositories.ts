@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import type { Pool, PoolClient } from "pg";
 import type { Money } from "@dachbyte-office/finance";
 import type { PricingFeeAssumption } from "@dachbyte-office/pricing-agent";
@@ -290,6 +290,33 @@ class Transaction implements PricingSimulationTaskTransaction {
     return row && stableJson(row.report_json) === stableJson(report)
       ? { status: "unchanged" as const, reportId: row.id }
       : { status: "conflict" as const, reportId: row?.id ?? "" };
+  }
+  async persistWorkbookArtifact(
+    input: Parameters<
+      PricingSimulationTaskTransaction["persistWorkbookArtifact"]
+    >[0],
+  ): Promise<void> {
+    const contentSha256 = createHash("sha256")
+      .update(input.content)
+      .digest("hex");
+    await this.client.query(
+      `INSERT INTO pricing_workbook_artifact
+        (id, office_id, pricing_simulation_report_id, storage_key, content_sha256, byte_length, media_type, content_bytes)
+       SELECT $1, report.office_id, report.id, $2, $3, $4, $5, $6
+       FROM pricing_simulation_report report
+       WHERE report.id = $7
+       ON CONFLICT (office_id, pricing_simulation_report_id) DO NOTHING
+       RETURNING id`,
+      [
+        randomUUID(),
+        `pricing-workbook:${input.reportId}.xlsx`,
+        contentSha256,
+        input.content.byteLength,
+        input.mediaType,
+        input.content,
+        input.reportId,
+      ],
+    );
   }
   async persistPreparedActions(
     input: Parameters<

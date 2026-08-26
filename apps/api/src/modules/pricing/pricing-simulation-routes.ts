@@ -16,6 +16,14 @@ export type PricingSimulationEndpoint = {
   getReport(
     taskId: string,
   ): Promise<{ status: "found"; report: unknown } | { status: "not_found" }>;
+  getWorkbook(taskId: string): Promise<
+    | {
+        status: "found";
+        content: Buffer;
+        mediaType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+      }
+    | { status: "not_found" }
+  >;
 };
 const record = (value: unknown): Record<string, unknown> | null =>
   value !== null && typeof value === "object" && !Array.isArray(value)
@@ -109,4 +117,30 @@ export const registerPricingSimulationRoutes = (
       return reply.code(400).send({ error: "invalid_pricing_task_id" });
     }
   });
+  server.get(
+    "/v1/pricing/simulations/:taskId/workbook",
+    async (request, reply) => {
+      const actor = await authenticateAdminMaster(request, options.authService);
+      if (!actor) return reply.code(401).send({ error: "unauthorized" });
+      const taskId = (request.params as { taskId?: unknown }).taskId;
+      if (typeof taskId !== "string")
+        return reply.code(400).send({ error: "invalid_pricing_task_id" });
+      try {
+        const result =
+          await options.pricingSimulationService.getWorkbook(taskId);
+        if (result.status === "not_found")
+          return reply.code(404).send({ error: "pricing_workbook_not_found" });
+        return reply
+          .code(200)
+          .header("content-type", result.mediaType)
+          .header(
+            "content-disposition",
+            `attachment; filename="pricing-${taskId}.xlsx"`,
+          )
+          .send(result.content);
+      } catch {
+        return reply.code(400).send({ error: "invalid_pricing_task_id" });
+      }
+    },
+  );
 };

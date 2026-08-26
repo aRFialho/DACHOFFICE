@@ -8,6 +8,10 @@ import {
 } from "@dachbyte-office/pricing-agent";
 import { simulatePricing } from "@dachbyte-office/pricing-agent/pricing-simulation";
 import type { TaskOutboxJob } from "../task-worker.js";
+import {
+  PRICING_WORKBOOK_MEDIA_TYPE,
+  renderPricingWorkbook,
+} from "./pricing-workbook.js";
 
 const requiredGrants = [
   "products.get",
@@ -73,6 +77,12 @@ export interface PricingSimulationTaskTransaction {
     status: "created" | "unchanged" | "conflict";
     reportId: string;
   }>;
+  persistWorkbookArtifact(input: {
+    reportId: string;
+    idempotencyKey: string;
+    mediaType: typeof PRICING_WORKBOOK_MEDIA_TYPE;
+    content: Buffer;
+  }): Promise<void>;
   persistPreparedActions(input: {
     reportId: string;
     actions: readonly {
@@ -97,6 +107,7 @@ export interface PricingSimulationTaskRepository {
 export class PricingSimulationTaskHandler {
   constructor(
     private readonly options: {
+      renderWorkbook?: (report: PricingSimulationReport) => Promise<Buffer>;
       repository: PricingSimulationTaskRepository;
       facts: PricingSimulationFactsRepository;
       now?: () => string;
@@ -160,6 +171,15 @@ export class PricingSimulationTaskHandler {
       });
       if (persisted.status === "conflict")
         throw failure("pricing_simulation_report_conflict");
+      const content = await (
+        this.options.renderWorkbook ?? renderPricingWorkbook
+      )(report);
+      await transaction.persistWorkbookArtifact({
+        reportId: persisted.reportId,
+        idempotencyKey: job.idempotencyKey,
+        mediaType: PRICING_WORKBOOK_MEDIA_TYPE,
+        content,
+      });
       await transaction.persistPreparedActions({
         reportId: persisted.reportId,
         actions: report.lines.flatMap((line) =>

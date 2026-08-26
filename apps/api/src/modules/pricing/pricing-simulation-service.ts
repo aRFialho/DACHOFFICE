@@ -48,6 +48,14 @@ export interface PricingSimulationRepository {
   getReportForTask(
     taskId: string,
   ): Promise<{ status: "found"; report: unknown } | { status: "not_found" }>;
+  getWorkbookForTask(taskId: string): Promise<
+    | {
+        status: "found";
+        content: Buffer;
+        mediaType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+      }
+    | { status: "not_found" }
+  >;
 }
 export class PricingSimulationService {
   constructor(private readonly repository: PricingSimulationRepository) {}
@@ -75,6 +83,10 @@ export class PricingSimulationService {
   getReport(taskId: string) {
     if (!uuidPattern.test(taskId)) throw new Error("task id is invalid");
     return this.repository.getReportForTask(taskId);
+  }
+  getWorkbook(taskId: string) {
+    if (!uuidPattern.test(taskId)) throw new Error("task id is invalid");
+    return this.repository.getWorkbookForTask(taskId);
   }
 }
 function eligible(

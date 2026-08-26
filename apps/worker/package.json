@@ -22,6 +22,7 @@
     "@dachbyte-office/finance": "workspace:*",
     "@dachbyte-office/margin-agent": "workspace:*",
     "@dachbyte-office/pricing-agent": "workspace:*",
+    "exceljs": "4.4.0",
     "pg": "8.23.0"
   }
 }

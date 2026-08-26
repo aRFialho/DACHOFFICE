@@ -31,6 +31,7 @@ describe("PricingSimulationService", () => {
         };
       },
       getReportForTask: async () => ({ status: "not_found" as const }),
+      getWorkbookForTask: async () => ({ status: "not_found" as const }),
     });
     await expect(
       service.create({

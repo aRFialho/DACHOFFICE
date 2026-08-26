@@ -18,6 +18,7 @@ class FakeTransaction implements PricingSimulationTaskTransaction {
   authorized = true;
   reports: unknown[] = [];
   actions: unknown[] = [];
+  workbooks: unknown[] = [];
   context = [
     { key: "agentVersionId", value: "version-1" },
     { key: "skus", value: '["SKU-1"]' },
@@ -56,6 +57,10 @@ class FakeTransaction implements PricingSimulationTaskTransaction {
     this.calls.push("report");
     this.reports.push(input);
     return { status: "created" as const, reportId: "report-1" };
+  }
+  async persistWorkbookArtifact(input: unknown) {
+    this.calls.push("workbook");
+    this.workbooks.push(input);
   }
   async persistPreparedActions(input: unknown) {
     this.calls.push("actions");
@@ -153,6 +158,7 @@ describe("PricingSimulationTaskHandler", () => {
       repository,
       facts: sourceFacts,
       now: () => "2026-08-25T12:00:00.000Z",
+      renderWorkbook: async () => Buffer.from("xlsx"),
     });
 
     await expect(handler.canHandle(job)).resolves.toBe(true);
@@ -164,6 +170,7 @@ describe("PricingSimulationTaskHandler", () => {
       "context",
       "authorize",
       "report",
+      "workbook",
       "actions",
       "complete",
     ]);
@@ -180,6 +187,13 @@ describe("PricingSimulationTaskHandler", () => {
           status: "completed",
           confidence: "ESTIMATED",
         }),
+      }),
+    );
+    expect(repository.transaction.workbooks[0]).toEqual(
+      expect.objectContaining({
+        reportId: "report-1",
+        idempotencyKey: job.idempotencyKey,
+        content: Buffer.from("xlsx"),
       }),
     );
     expect(repository.transaction.actions[0]).toEqual(
