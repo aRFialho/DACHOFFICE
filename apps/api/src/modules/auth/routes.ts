@@ -3,6 +3,7 @@ import type { AuthService } from "./service.js";
 import type { AuthTokenConfig } from "./types.js";
 
 const refreshCookieName = "office_refresh_token";
+const officeAccessCookieName = "office_access_token";
 
 const noStore = (reply: FastifyReply) =>
   reply.header("cache-control", "no-store");
@@ -47,6 +48,13 @@ const sendSession = (
       sameSite: "strict",
       path: "/v1/auth",
       maxAge: config.refreshTokenTtlSeconds,
+    })
+    .setCookie(officeAccessCookieName, result.accessToken, {
+      httpOnly: true,
+      secure: config.secureCookies,
+      sameSite: "strict",
+      path: "/api/office",
+      maxAge: result.expiresIn,
     })
     .send({
       accessToken: result.accessToken,
@@ -97,6 +105,7 @@ export const registerAuthRoutes = (
     if (refreshToken) await authService.logout(refreshToken);
     return noStore(reply)
       .clearCookie(refreshCookieName, { path: "/v1/auth" })
+      .clearCookie(officeAccessCookieName, { path: "/api/office" })
       .code(204)
       .send();
   });

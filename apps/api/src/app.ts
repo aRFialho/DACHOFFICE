@@ -30,6 +30,8 @@ import type { PricingSimulationEndpoint } from "./modules/pricing/pricing-simula
 import { registerSupplierPriceTableRoutes } from "./modules/pricing/supplier-price-table-routes.js";
 import type { SupplierPriceTableImportEndpoint } from "./modules/pricing/supplier-price-table-routes.js";
 import type { PricingTools } from "./modules/pricing/pricing-tools.js";
+import { registerOfficeRuntimeRoutes } from "./modules/office-runtime/office-runtime-routes.js";
+import type { OfficeRuntimeService } from "./modules/office-runtime/office-runtime-service.js";
 export interface BuildServerOptions {
   authService?: AuthService;
   authTokenConfig?: AuthTokenConfig;
@@ -46,6 +48,7 @@ export interface BuildServerOptions {
   pricingSimulationService?: PricingSimulationEndpoint;
   supplierPriceTableImportService?: SupplierPriceTableImportEndpoint;
   pricingTools?: PricingTools;
+  officeRuntimeService?: OfficeRuntimeService;
 }
 
 export const buildServer = (options: BuildServerOptions = {}) => {
@@ -125,6 +128,12 @@ export const buildServer = (options: BuildServerOptions = {}) => {
     registerSupplierPriceTableRoutes(server, {
       authService: options.authService,
       supplierPriceTableImportService: options.supplierPriceTableImportService,
+    });
+  }
+  if (options.authService && options.officeRuntimeService) {
+    registerOfficeRuntimeRoutes(server, {
+      authService: options.authService,
+      officeRuntimeService: options.officeRuntimeService,
     });
   }
   return server;

@@ -1,13 +1,17 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import officePrototypeMap from "../maps/office-prototype.tiled.json" with { type: "json" };
 import {
   officeVisualScenarioIds,
   type OfficeVisualScenarioId,
 } from "../renderer/office-visual-scenario.js";
 import { OfficeScene } from "../renderer/office-scene.js";
+import { createOfficeSceneModel } from "../renderer/office-scene-model.js";
+import { createOfficeRuntimeSceneState } from "../runtime/office-runtime-visual-state.js";
+import type { OfficeRuntimeProjection } from "../runtime/office-runtime-projection.js";
 
 export interface OfficeCanvasProps {
   readonly debug?: boolean;
+  readonly runtimeProjection?: OfficeRuntimeProjection;
 }
 
 type OfficeCanvasStatus = "error" | "loading" | "ready";
@@ -27,9 +31,21 @@ export const officeFixtureScenarioFromSearch = (
   return officeVisualScenarioIds.find((scenarioId) => scenarioId === fixtureId);
 };
 
-export const OfficeCanvas = ({ debug = false }: OfficeCanvasProps) => {
+export const OfficeCanvas = ({
+  debug = false,
+  runtimeProjection,
+}: OfficeCanvasProps) => {
   const hostRef = useRef<HTMLDivElement>(null);
   const [status, setStatus] = useState<OfficeCanvasStatus>("loading");
+  const runtimeSceneState = useMemo(() => {
+    if (runtimeProjection === undefined) return undefined;
+    const model = createOfficeSceneModel(officePrototypeMap);
+    return createOfficeRuntimeSceneState(
+      runtimeProjection,
+      new Set(model.destinations.map((destination) => destination.id)),
+      "FINANCE_DESK_ARTHUR",
+    );
+  }, [runtimeProjection]);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -45,9 +61,15 @@ export const OfficeCanvas = ({ debug = false }: OfficeCanvasProps) => {
         ? officeFixtureScenarioFromSearch(window.location.search)
         : undefined;
     const sceneOptions =
-      scenarioId === undefined
-        ? { debug, mapSource: officePrototypeMap }
-        : { debug, mapSource: officePrototypeMap, scenarioId };
+      runtimeSceneState !== undefined
+        ? {
+            debug,
+            mapSource: officePrototypeMap,
+            runtimeState: runtimeSceneState,
+          }
+        : scenarioId === undefined
+          ? { debug, mapSource: officePrototypeMap }
+          : { debug, mapSource: officePrototypeMap, scenarioId };
 
     void OfficeScene.mount(host, sceneOptions)
       .then((mountedScene) => {
@@ -69,7 +91,7 @@ export const OfficeCanvas = ({ debug = false }: OfficeCanvasProps) => {
       disposed = true;
       scene?.destroy();
     };
-  }, [debug]);
+  }, [debug, runtimeSceneState]);
 
   return (
     <section className="office-canvas" aria-labelledby="office-canvas-title">
@@ -85,8 +107,9 @@ export const OfficeCanvas = ({ debug = false }: OfficeCanvasProps) => {
         role="img"
       />
       <p className="office-canvas__description">
-        Local fixture scenarios only; no live meeting, incident, workforce,
-        task, or action data is shown.
+        {runtimeProjection === undefined
+          ? "Local fixture scenarios only; no live meeting, incident, workforce, task, or action data is shown."
+          : "Authoritative semantic Office projection. The scene does not create business state or external actions."}
       </p>
       <p className="office-canvas__description">
         No live operational state is shown in this preview.

@@ -20,6 +20,7 @@ import { createPricingSimulationRuntime } from "./modules/pricing/postgres-prici
 import { SupplierPriceTableImportService } from "./modules/pricing/supplier-price-table-import-service.js";
 import { PricingSimulationService } from "./modules/pricing/pricing-simulation-service.js";
 import { PostgresSupplierPriceTableImportRepository } from "./modules/pricing/postgres-supplier-price-table-import-repository.js";
+import { PostgresOfficeRuntimeService } from "./modules/office-runtime/postgres-office-runtime-service.js";
 
 const runtimeConfig = loadAuthRuntimeConfig(process.env);
 const pool = new pg.Pool({ connectionString: runtimeConfig.databaseUrl });
@@ -62,6 +63,7 @@ const server = buildServer({
   ),
   pricingTools: pricingRuntime.pricingTools,
   supplierPriceTableImportService,
+  officeRuntimeService: new PostgresOfficeRuntimeService(pool),
 });
 server.addHook("onClose", async () => {
   await pool.end();

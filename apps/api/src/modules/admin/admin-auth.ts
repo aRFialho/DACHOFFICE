@@ -7,11 +7,12 @@ export const authenticateAdminMaster = async (
   authService: AuthService,
 ): Promise<AuthenticatedActor | null> => {
   const header = request.headers.authorization;
-  if (!header?.startsWith("Bearer ")) return null;
+  const token = header?.startsWith("Bearer ")
+    ? header.slice("Bearer ".length).trim()
+    : request.cookies.office_access_token;
+  if (!token) return null;
   try {
-    const actor = await authService.authenticate(
-      header.slice("Bearer ".length).trim(),
-    );
+    const actor = await authService.authenticate(token);
     return actor.user.role === "admin_master" ? actor : null;
   } catch {
     return null;

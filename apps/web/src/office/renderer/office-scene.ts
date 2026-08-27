@@ -27,6 +27,7 @@ import {
 } from "./office-scene-model.js";
 import { projectOfficeNavigationRoute } from "./navigation-route-overlay.js";
 import { createSpeechBubble } from "./speech-bubble.js";
+import type { OfficeRuntimeSceneState } from "../runtime/office-runtime-visual-state.js";
 
 const tileWidth = 64;
 const tileHeight = 32;
@@ -36,6 +37,7 @@ export interface OfficeSceneOptions {
   readonly debug?: boolean;
   readonly mapSource: unknown;
   readonly scenarioId?: OfficeVisualScenarioId;
+  readonly runtimeState?: OfficeRuntimeSceneState;
 }
 
 export class OfficeScene {
@@ -72,6 +74,7 @@ export class OfficeScene {
     debug = false,
     mapSource,
     scenarioId = defaultOfficeVisualScenarioId,
+    runtimeState,
   }: OfficeSceneOptions): Promise<void> {
     const model = createOfficeSceneModel(mapSource);
     const layers = new Map<OfficeSceneLayerId, Container>();
@@ -92,6 +95,7 @@ export class OfficeScene {
       layers.get("overlays")!,
       model,
       scenarioId,
+      runtimeState,
       registry,
     );
 
@@ -169,6 +173,7 @@ export class OfficeScene {
     overlayLayer: Container,
     model: OfficeSceneModel,
     scenarioId: OfficeVisualScenarioId,
+    runtimeState: OfficeRuntimeSceneState | undefined,
     registry: OfficeAssetRegistry,
   ): Promise<void> {
     const atlasAsset = registry.get("agent.finance_analyst");
@@ -182,8 +187,18 @@ export class OfficeScene {
     });
     const textures = createFinanceAnalystAtlasTextures(sourceTexture);
     const scenario = resolveOfficeVisualScenario(scenarioId);
+    const agents =
+      runtimeState === undefined
+        ? scenario.agents
+        : runtimeState.agents.map((agent) => ({
+            agentId: agent.id,
+            animation: { direction: "se" as const, state: agent.state },
+            destinationId: agent.destinationId,
+            speech: agent.speech,
+            startDestinationId: "FINANCE_DESK_ARTHUR" as const,
+          }));
 
-    for (const fixture of scenario.agents) {
+    for (const fixture of agents) {
       const route = createFixtureAgentRoute({
         destinations: model.destinations,
         grid: model.navigationGrid,
