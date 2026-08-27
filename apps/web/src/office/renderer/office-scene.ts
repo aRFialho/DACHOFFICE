@@ -10,6 +10,8 @@ import type { OfficeSceneLayerId } from "../art/index.js";
 import type { OfficeAssetRegistry } from "./asset-registry.js";
 import { createOfficeAssetRegistry } from "./asset-registry.js";
 import { createOfficeSceneModel } from "./office-scene-model.js";
+import { createFinanceAnalystAtlasTextures } from "./agent-atlas.js";
+import { frameForAgentAnimation } from "./agent-animation-state.js";
 import { projectOfficeNavigationRoute } from "./navigation-route-overlay.js";
 
 const tileWidth = 64;
@@ -67,11 +69,9 @@ export class OfficeScene {
     this.drawFloor(layers.get("floor")!);
     this.drawRoomTint(layers.get("floor_decals")!);
     this.drawWalls(layers.get("walls_back")!, layers.get("walls_front")!);
-    await this.drawFurniture(
-      layers.get("furniture_back")!,
-      createOfficeAssetRegistry(),
-    );
-    this.drawLocalAvatar(layers.get("dynamic")!);
+    const registry = createOfficeAssetRegistry();
+    await this.drawFurniture(layers.get("furniture_back")!, registry);
+    await this.drawLocalAvatar(layers.get("dynamic")!, registry);
 
     if (debug) {
       const debugLayer = layers.get("debug")!;
@@ -142,17 +142,26 @@ export class OfficeScene {
     layer.addChild(desk);
   }
 
-  private drawLocalAvatar(layer: Container): void {
-    const avatar = new Graphics()
-      .circle(0, -17, 10)
-      .fill({ color: 0xf1c7a8 })
-      .roundRect(-11, -7, 22, 29, 6)
-      .fill({ color: 0x152b4a })
-      .rect(-7, 1, 14, 8)
-      .fill({ color: 0x45bdb5 });
-
+  private async drawLocalAvatar(
+    layer: Container,
+    registry: OfficeAssetRegistry,
+  ): Promise<void> {
+    const atlasAsset = registry.get("agent.finance_analyst");
+    if (atlasAsset === undefined)
+      throw new Error("Finance analyst atlas is required");
+    const sourceTexture = await Assets.load({
+      data: { scaleMode: "nearest" },
+      src: atlasAsset.src,
+    });
+    const frame = frameForAgentAnimation({ direction: "se", state: "IDLE" });
+    const texture = createFinanceAnalystAtlasTextures(sourceTexture).get(frame);
+    if (texture === undefined)
+      throw new Error("Finance analyst idle frame is required");
+    const avatar = new Sprite(texture);
+    avatar.anchor.set(0.5, 1);
     avatar.position.set(340, 210);
-    avatar.label = "finance-avatar-reference";
+    avatar.scale.set(0.8);
+    avatar.label = "finance-avatar-local-idle-preview";
     layer.addChild(avatar);
   }
 
