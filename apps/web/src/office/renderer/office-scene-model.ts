@@ -1,5 +1,8 @@
 import { officeRepresentativeAssets } from "../assets/manifest.js";
-import { createOfficeNavigationGrid } from "./navigation-grid.js";
+import {
+  createOfficeNavigationGrid,
+  type OfficeNavigationGrid,
+} from "./navigation-grid.js";
 import {
   resolveOfficeNavigationRoute,
   type OfficeNavigationRoute,
@@ -17,6 +20,7 @@ export interface OfficeSceneModel {
   readonly assetIds: readonly string[];
   readonly destinations: readonly OfficeRendererDestination[];
   readonly layers: readonly OfficeSceneLayerPlanEntry[];
+  readonly navigationGrid: OfficeNavigationGrid;
   readonly navigationRoute: OfficeNavigationRoute | undefined;
 }
 
@@ -24,15 +28,16 @@ export const createOfficeSceneModel = (
   mapSource: unknown,
 ): OfficeSceneModel => {
   const map = parseOfficeTiledMap(mapSource);
+  const navigationGrid = createOfficeNavigationGrid({
+    constraints: map.navigationConstraints,
+    height: map.navigationSize.height,
+    tileSize: map.tileSize,
+    width: map.navigationSize.width,
+  });
   const navigationRoute = resolveOfficeNavigationRoute({
     destinationId: map.destinations[0]?.id ?? "",
     destinations: map.destinations,
-    grid: createOfficeNavigationGrid({
-      constraints: map.navigationConstraints,
-      height: map.navigationSize.height,
-      tileSize: map.tileSize,
-      width: map.navigationSize.width,
-    }),
+    grid: navigationGrid,
     start: { column: 0, row: 0 },
   });
 
@@ -40,6 +45,7 @@ export const createOfficeSceneModel = (
     assetIds: officeRepresentativeAssets.map((asset) => asset.id),
     destinations: map.destinations,
     layers: createOfficeSceneLayerPlan(),
+    navigationGrid,
     navigationRoute,
   };
 };

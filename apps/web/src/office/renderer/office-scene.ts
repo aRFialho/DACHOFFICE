@@ -5,14 +5,28 @@ import {
   Graphics,
   Sprite,
   Text,
+  type Ticker,
 } from "pixi.js";
 import type { OfficeSceneLayerId } from "../art/index.js";
 import type { OfficeAssetRegistry } from "./asset-registry.js";
 import { createOfficeAssetRegistry } from "./asset-registry.js";
-import { createOfficeSceneModel } from "./office-scene-model.js";
 import { createFinanceAnalystAtlasTextures } from "./agent-atlas.js";
 import { frameForAgentAnimation } from "./agent-animation-state.js";
+import {
+  createFixtureAgentRoute,
+  positionForFixtureRoute,
+} from "./fixture-agent-route.js";
+import {
+  defaultOfficeVisualScenarioId,
+  resolveOfficeVisualScenario,
+  type OfficeVisualScenarioId,
+} from "./office-visual-scenario.js";
+import {
+  createOfficeSceneModel,
+  type OfficeSceneModel,
+} from "./office-scene-model.js";
 import { projectOfficeNavigationRoute } from "./navigation-route-overlay.js";
+import { createSpeechBubble } from "./speech-bubble.js";
 
 const tileWidth = 64;
 const tileHeight = 32;
@@ -21,6 +35,7 @@ const sceneOrigin = { x: 340, y: 104 };
 export interface OfficeSceneOptions {
   readonly debug?: boolean;
   readonly mapSource: unknown;
+  readonly scenarioId?: OfficeVisualScenarioId;
 }
 
 export class OfficeScene {
@@ -28,7 +43,7 @@ export class OfficeScene {
 
   static async mount(
     host: HTMLElement,
-    { debug = false, mapSource }: OfficeSceneOptions,
+    options: OfficeSceneOptions,
   ): Promise<OfficeScene> {
     const application = new Application();
     await application.init({
@@ -45,7 +60,7 @@ export class OfficeScene {
     host.append(application.canvas);
 
     const scene = new OfficeScene(application);
-    await scene.render({ debug, mapSource });
+    await scene.render(options);
     return scene;
   }
 
@@ -54,8 +69,9 @@ export class OfficeScene {
   }
 
   private async render({
-    debug,
+    debug = false,
     mapSource,
+    scenarioId = defaultOfficeVisualScenarioId,
   }: OfficeSceneOptions): Promise<void> {
     const model = createOfficeSceneModel(mapSource);
     const layers = new Map<OfficeSceneLayerId, Container>();
@@ -71,7 +87,13 @@ export class OfficeScene {
     this.drawWalls(layers.get("walls_back")!, layers.get("walls_front")!);
     const registry = createOfficeAssetRegistry();
     await this.drawFurniture(layers.get("furniture_back")!, registry);
-    await this.drawLocalAvatar(layers.get("dynamic")!, registry);
+    await this.drawFixtureAgents(
+      layers.get("dynamic")!,
+      layers.get("overlays")!,
+      model,
+      scenarioId,
+      registry,
+    );
 
     if (debug) {
       const debugLayer = layers.get("debug")!;
@@ -142,27 +164,78 @@ export class OfficeScene {
     layer.addChild(desk);
   }
 
-  private async drawLocalAvatar(
-    layer: Container,
+  private async drawFixtureAgents(
+    dynamicLayer: Container,
+    overlayLayer: Container,
+    model: OfficeSceneModel,
+    scenarioId: OfficeVisualScenarioId,
     registry: OfficeAssetRegistry,
   ): Promise<void> {
     const atlasAsset = registry.get("agent.finance_analyst");
-    if (atlasAsset === undefined)
+    if (atlasAsset === undefined) {
       throw new Error("Finance analyst atlas is required");
+    }
+
     const sourceTexture = await Assets.load({
       data: { scaleMode: "nearest" },
       src: atlasAsset.src,
     });
-    const frame = frameForAgentAnimation({ direction: "se", state: "IDLE" });
-    const texture = createFinanceAnalystAtlasTextures(sourceTexture).get(frame);
-    if (texture === undefined)
-      throw new Error("Finance analyst idle frame is required");
-    const avatar = new Sprite(texture);
-    avatar.anchor.set(0.5, 1);
-    avatar.position.set(340, 210);
-    avatar.scale.set(0.8);
-    avatar.label = "finance-avatar-local-idle-preview";
-    layer.addChild(avatar);
+    const textures = createFinanceAnalystAtlasTextures(sourceTexture);
+    const scenario = resolveOfficeVisualScenario(scenarioId);
+
+    for (const fixture of scenario.agents) {
+      const route = createFixtureAgentRoute({
+        destinations: model.destinations,
+        grid: model.navigationGrid,
+        origin: sceneOrigin,
+        startDestinationId: fixture.startDestinationId,
+        targetDestinationId: fixture.destinationId,
+        tileSize: { height: tileHeight, width: tileWidth },
+      });
+      const walkingFrame = frameForAgentAnimation({
+        direction: fixture.animation.direction,
+        state: "WALKING",
+      });
+      const arrivedFrame = frameForAgentAnimation(fixture.animation);
+      const walkingTexture = textures.get(walkingFrame);
+      const arrivedTexture = textures.get(arrivedFrame);
+
+      if (walkingTexture === undefined || arrivedTexture === undefined) {
+        throw new Error("Fixture animation frame is required");
+      }
+
+      const avatar = new Sprite(walkingTexture);
+      avatar.anchor.set(0.5, 1);
+      avatar.position.set(route.start.x, route.start.y);
+      avatar.scale.set(0.8);
+      avatar.label = `local-fixture-agent-${fixture.agentId}`;
+      dynamicLayer.addChild(avatar);
+
+      const speechBubble =
+        fixture.speech === undefined
+          ? undefined
+          : createSpeechBubble(fixture.speech);
+      if (speechBubble !== undefined) {
+        speechBubble.position.set(route.start.x + 10, route.start.y - 70);
+        overlayLayer.addChild(speechBubble);
+      }
+
+      let elapsedMs = 0;
+      const durationMs = 700 + route.cells.length * 100;
+      const advance = (ticker: Ticker): void => {
+        elapsedMs = Math.min(durationMs, elapsedMs + ticker.deltaMS);
+        const position = positionForFixtureRoute(route, elapsedMs / durationMs);
+        avatar.position.set(position.x, position.y);
+        speechBubble?.position.set(position.x + 10, position.y - 70);
+
+        if (elapsedMs === durationMs) {
+          avatar.texture = arrivedTexture;
+          this.application.ticker.remove(advance);
+        }
+      };
+
+      this.application.ticker.add(advance);
+    }
   }
 
   private drawNavigationRoute(
@@ -186,6 +259,7 @@ export class OfficeScene {
     route.label = "local-navigation-route";
     layer.addChild(route);
   }
+
   private drawDebug(
     layer: Container,
     destinations: readonly Readonly<{

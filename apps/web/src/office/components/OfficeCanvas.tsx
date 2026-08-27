@@ -1,5 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import officePrototypeMap from "../maps/office-prototype.tiled.json" with { type: "json" };
+import {
+  officeVisualScenarioIds,
+  type OfficeVisualScenarioId,
+} from "../renderer/office-visual-scenario.js";
 import { OfficeScene } from "../renderer/office-scene.js";
 
 export interface OfficeCanvasProps {
@@ -15,6 +19,14 @@ const statusCopy: Record<OfficeCanvasStatus, string> = {
     "Local visual Office renderer. No live operational state is shown in this preview.",
 };
 
+export const officeFixtureScenarioFromSearch = (
+  search: string,
+): OfficeVisualScenarioId | undefined => {
+  const fixtureId = new URLSearchParams(search).get("officeFixture");
+
+  return officeVisualScenarioIds.find((scenarioId) => scenarioId === fixtureId);
+};
+
 export const OfficeCanvas = ({ debug = false }: OfficeCanvasProps) => {
   const hostRef = useRef<HTMLDivElement>(null);
   const [status, setStatus] = useState<OfficeCanvasStatus>("loading");
@@ -28,7 +40,16 @@ export const OfficeCanvas = ({ debug = false }: OfficeCanvasProps) => {
       return;
     }
 
-    void OfficeScene.mount(host, { debug, mapSource: officePrototypeMap })
+    const scenarioId =
+      import.meta.env.DEV && typeof window !== "undefined"
+        ? officeFixtureScenarioFromSearch(window.location.search)
+        : undefined;
+    const sceneOptions =
+      scenarioId === undefined
+        ? { debug, mapSource: officePrototypeMap }
+        : { debug, mapSource: officePrototypeMap, scenarioId };
+
+    void OfficeScene.mount(host, sceneOptions)
       .then((mountedScene) => {
         if (disposed) {
           mountedScene.destroy();
@@ -63,6 +84,10 @@ export const OfficeCanvas = ({ debug = false }: OfficeCanvasProps) => {
         ref={hostRef}
         role="img"
       />
+      <p className="office-canvas__description">
+        Local fixture scenarios only; no live meeting, incident, workforce,
+        task, or action data is shown.
+      </p>
       <p className="office-canvas__description">
         No live operational state is shown in this preview.
       </p>

@@ -13,6 +13,8 @@ export const officeVisualScenarioIds = [
 
 export type OfficeVisualScenarioId = (typeof officeVisualScenarioIds)[number];
 
+export const defaultOfficeVisualScenarioId = "DAILY_MEETING" as const;
+
 export interface OfficeVisualSpeech {
   readonly severity: "NORMAL" | "CRITICAL";
   readonly text: string;
