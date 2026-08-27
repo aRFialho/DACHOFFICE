@@ -61,6 +61,10 @@ atlas.agent.<role>.v<version>.json
 
 Examples: `floor.office_base.default.png`, `furniture.analyst_desk.default.png`, `atlas.agent.finance_analyst.v1.json`.
 
+## Representative source art
+
+`furniture/finance-analyst-desk-v1.png` and `agents/finance-analyst-atlas-v1.png` are separate representative source assets. The latter provides eight orientation references (idle and walk) for one Finance analyst; it is not a whole-office image and has no encoded business state. Sprint 14B will normalize source textures and register their runtime atlas metadata before Pixi renders them. Neither asset assigns a coordinate, destination or operational meaning.
+
 ## Atlas contract
 
 Every animated agent atlas includes:
@@ -115,4 +119,4 @@ No channel/provider integration is resumed by this frontend programme.
 - Target reference is stored exclusively in documentation.
 - Typed layer, asset, atlas and semantic destination contracts exist with focused tests.
 - The React Art System preview is explicitly non-operational and makes no API, database or provider call.
-- Final acceptance adds browser screenshot review; this evidence is recorded only after that validation succeeds.
+- Playwright review at desktop and 390 px mobile confirmed the accessible preview, with no browser console errors or warnings.

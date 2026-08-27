@@ -126,12 +126,12 @@ Replace the Foundation placeholder copy and its minimal centered styles in place
 
 ### After implementation
 
-- [ ] Asset and semantic-layout contracts have focused tests.
-- [ ] Web test, typecheck, lint, build, formatter and diff checks pass.
-- [ ] The preview is keyboard accessible, responsive and reduced-motion safe.
-- [ ] The runtime has no target-image import or provider/database access.
-- [ ] The Art Bible records the 14A acceptance evidence and future sequence.
-- [ ] Diff and browser screenshot are reviewed.
+- [x] Asset and semantic-layout contracts have focused tests.
+- [x] Web test, typecheck, lint, build, formatter and diff checks pass.
+- [x] The preview is keyboard accessible, responsive and reduced-motion safe.
+- [x] The runtime has no target-image import or provider/database access.
+- [x] The Art Bible records the 14A acceptance evidence and future sequence.
+- [x] Diff and browser screenshot are reviewed.
 
 ## Commit sequence
 

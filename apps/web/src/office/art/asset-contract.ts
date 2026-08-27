@@ -41,6 +41,7 @@ export const requiredAgentAtlasFrames = [
 export type OfficeAgentAtlasFrame = (typeof requiredAgentAtlasFrames)[number];
 
 export interface OfficeAtlasDefinition {
+  readonly sourceAssetId: string;
   readonly id: string;
   readonly frameWidth: number;
   readonly frameHeight: number;
@@ -137,6 +138,7 @@ export const officeAssetCatalog: readonly OfficeAssetDefinition[] = [
 export const officeAgentAtlases: readonly OfficeAtlasDefinition[] = [
   {
     id: "atlas.agent.finance_analyst.v1",
+    sourceAssetId: "agent.finance_analyst",
     frameWidth: 64,
     frameHeight: 80,
     frames: requiredAgentAtlasFrames,

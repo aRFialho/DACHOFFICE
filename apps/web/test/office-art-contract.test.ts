@@ -2,12 +2,14 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+  officeAgentAtlases,
   officeAssetCatalog,
   officeDestinations,
   officeSceneLayers,
   officeZones,
   requiredAgentAtlasFrames,
 } from "../src/office/art/index.js";
+import { officeRepresentativeAssets } from "../src/office/assets/manifest.js";
 
 describe("Office art contracts", () => {
   it("defines the deterministic independent scene layer order", () => {
@@ -63,6 +65,16 @@ describe("Office art contracts", () => {
     );
   });
 
+  it("keeps the representative furniture and agent artwork as separate sources", () => {
+    expect(officeRepresentativeAssets.map((asset) => asset.id)).toEqual([
+      "furniture.analyst_desk",
+      "agent.finance_analyst",
+    ]);
+    expect(
+      officeRepresentativeAssets.every((asset) => asset.src.length > 0),
+    ).toBe(true);
+    expect(officeAgentAtlases[0]?.sourceAssetId).toBe("agent.finance_analyst");
+  });
   it("uses semantic destinations instead of scene coordinates", () => {
     const zoneIds = new Set(officeZones.map((zone) => zone.id));
     expect(officeDestinations.length).toBeGreaterThanOrEqual(9);
