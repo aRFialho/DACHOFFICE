@@ -1,0 +1,62 @@
+{
+  "type": "map",
+  "tilewidth": 64,
+  "tileheight": 32,
+  "width": 8,
+  "height": 6,
+  "layers": [
+    { "name": "floor", "type": "tilelayer" },
+    { "name": "floor_decals", "type": "tilelayer" },
+    { "name": "walls_back", "type": "tilelayer" },
+    { "name": "walls_front", "type": "tilelayer" },
+    { "name": "furniture_back", "type": "tilelayer" },
+    { "name": "furniture_front", "type": "tilelayer" },
+    { "name": "collision", "type": "objectgroup", "objects": [] },
+    { "name": "navigation_blockers", "type": "objectgroup", "objects": [] },
+    { "name": "workstations", "type": "objectgroup", "objects": [] },
+    {
+      "name": "room_zones",
+      "type": "objectgroup",
+      "objects": [
+        {
+          "id": 1,
+          "name": "FINANCE",
+          "x": 64,
+          "y": 32,
+          "width": 256,
+          "height": 160,
+          "properties": [
+            { "name": "officeZone", "type": "string", "value": "FINANCE" }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "destinations",
+      "type": "objectgroup",
+      "objects": [
+        {
+          "id": 2,
+          "name": "FINANCE_DESK_ARTHUR",
+          "x": 192,
+          "y": 112,
+          "width": 32,
+          "height": 16,
+          "properties": [
+            {
+              "name": "destinationId",
+              "type": "string",
+              "value": "FINANCE_DESK_ARTHUR"
+            },
+            { "name": "officeZone", "type": "string", "value": "FINANCE" },
+            { "name": "walkable", "type": "bool", "value": true }
+          ]
+        }
+      ]
+    },
+    { "name": "entrances", "type": "objectgroup", "objects": [] },
+    { "name": "meeting_seats", "type": "objectgroup", "objects": [] },
+    { "name": "display_anchors", "type": "objectgroup", "objects": [] },
+    { "name": "branding_anchors", "type": "objectgroup", "objects": [] }
+  ]
+}

@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { parseOfficeTiledMap } from "../src/office/renderer/tiled-map.js";
 
@@ -79,6 +81,29 @@ describe("parseOfficeTiledMap", () => {
 
     expect(() => parseOfficeTiledMap(malformedMap)).toThrow(
       /destinationId.*officeZone.*walkable/i,
+    );
+  });
+  it("validates the local Tiled fixture required by the renderer", () => {
+    const fixture = JSON.parse(
+      readFileSync(
+        resolve(
+          import.meta.dirname,
+          "../src/office/maps/office-prototype.tiled.json",
+        ),
+        "utf8",
+      ),
+    ) as unknown;
+
+    const map = parseOfficeTiledMap(fixture);
+    expect(map.layerNames).toEqual(
+      expect.arrayContaining([
+        "floor",
+        "walls_back",
+        "furniture_back",
+        "collision",
+        "room_zones",
+        "destinations",
+      ]),
     );
   });
 });
