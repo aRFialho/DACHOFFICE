@@ -3,10 +3,11 @@ import { describe, expect, it } from "vitest";
 import { App } from "../src/App.js";
 
 describe("App", () => {
-  it("mounts the Office renderer instead of only presenting the Finance desk asset", () => {
+  it("mounts the Office renderer inside the React control plane", () => {
     const markup = renderToStaticMarkup(<App />);
 
-    expect(markup).toContain("Office renderer foundation");
+    expect(markup).toContain("Office control plane");
     expect(markup).toContain("Local visual Office renderer");
+    expect(markup).toContain("No authoritative task data is currently loaded.");
   });
 });
