@@ -10,6 +10,7 @@ import type { OfficeSceneLayerId } from "../art/index.js";
 import type { OfficeAssetRegistry } from "./asset-registry.js";
 import { createOfficeAssetRegistry } from "./asset-registry.js";
 import { createOfficeSceneModel } from "./office-scene-model.js";
+import { projectOfficeNavigationRoute } from "./navigation-route-overlay.js";
 
 const tileWidth = 64;
 const tileHeight = 32;
@@ -73,7 +74,11 @@ export class OfficeScene {
     this.drawLocalAvatar(layers.get("dynamic")!);
 
     if (debug) {
-      this.drawDebug(layers.get("debug")!, model.destinations);
+      const debugLayer = layers.get("debug")!;
+      if (model.navigationRoute !== undefined) {
+        this.drawNavigationRoute(debugLayer, model.navigationRoute.cells);
+      }
+      this.drawDebug(debugLayer, model.destinations);
     }
   }
 
@@ -151,6 +156,27 @@ export class OfficeScene {
     layer.addChild(avatar);
   }
 
+  private drawNavigationRoute(
+    layer: Container,
+    cells: readonly Readonly<{ column: number; row: number }>[],
+  ): void {
+    const points = projectOfficeNavigationRoute(cells, sceneOrigin, {
+      height: tileHeight,
+      width: tileWidth,
+    });
+
+    if (points.length < 2) {
+      return;
+    }
+
+    const route = new Graphics().moveTo(points[0]!.x, points[0]!.y);
+    for (const point of points.slice(1)) {
+      route.lineTo(point.x, point.y);
+    }
+    route.stroke({ alpha: 0.9, color: 0x8bf3e4, width: 2 });
+    route.label = "local-navigation-route";
+    layer.addChild(route);
+  }
   private drawDebug(
     layer: Container,
     destinations: readonly Readonly<{

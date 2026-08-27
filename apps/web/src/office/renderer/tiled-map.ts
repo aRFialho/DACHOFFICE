@@ -5,9 +5,16 @@ export interface OfficeRendererDestination {
   readonly zoneId: string;
 }
 
+export interface OfficeNavigationConstraint {
+  readonly position: Readonly<{ x: number; y: number }>;
+  readonly size: Readonly<{ height: number; width: number }>;
+}
+
 export interface OfficeTiledMap {
   readonly destinations: readonly OfficeRendererDestination[];
   readonly layerNames: readonly string[];
+  readonly navigationConstraints: readonly OfficeNavigationConstraint[];
+  readonly navigationSize: Readonly<{ height: number; width: number }>;
   readonly tileSize: Readonly<{ height: number; width: number }>;
 }
 
@@ -86,6 +93,35 @@ const requiredDestinationProperty = (
   return value;
 };
 
+const navigationConstraintsForLayer = (
+  layer: TiledRecord | undefined,
+): readonly OfficeNavigationConstraint[] => {
+  if (layer === undefined) {
+    return [];
+  }
+
+  if (layer.type !== "objectgroup") {
+    throw new Error("navigation layers must be object groups");
+  }
+
+  return asArray(layer.objects, "Tiled navigation objects").map((object) => {
+    const constraint = asRecord(object, "Tiled navigation object");
+    const width = asNumber(constraint.width, "Tiled navigation width");
+    const height = asNumber(constraint.height, "Tiled navigation height");
+
+    if (width <= 0 || height <= 0) {
+      throw new Error("Tiled navigation objects require positive dimensions");
+    }
+
+    return {
+      position: {
+        x: asNumber(constraint.x, "Tiled navigation x"),
+        y: asNumber(constraint.y, "Tiled navigation y"),
+      },
+      size: { height, width },
+    };
+  });
+};
 export const parseOfficeTiledMap = (value: unknown): OfficeTiledMap => {
   const map = asRecord(value, "Tiled map");
 
@@ -135,9 +171,23 @@ export const parseOfficeTiledMap = (value: unknown): OfficeTiledMap => {
     };
   });
 
+  const navigationConstraints = [
+    ...navigationConstraintsForLayer(
+      layers.find((layer) => layer.name === "collision"),
+    ),
+    ...navigationConstraintsForLayer(
+      layers.find((layer) => layer.name === "navigation_blockers"),
+    ),
+  ];
+
   return {
     destinations,
     layerNames: layers.map((layer) => asString(layer.name, "Tiled layer name")),
+    navigationConstraints,
+    navigationSize: {
+      height: asNumber(map.height, "Tiled map height"),
+      width: asNumber(map.width, "Tiled map width"),
+    },
     tileSize: {
       height: asNumber(map.tileheight, "Tiled map tileheight"),
       width: asNumber(map.tilewidth, "Tiled map tilewidth"),

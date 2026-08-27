@@ -12,7 +12,11 @@
     { "name": "furniture_back", "type": "tilelayer" },
     { "name": "furniture_front", "type": "tilelayer" },
     { "name": "collision", "type": "objectgroup", "objects": [] },
-    { "name": "navigation_blockers", "type": "objectgroup", "objects": [] },
+    {
+      "name": "navigation_blockers",
+      "type": "objectgroup",
+      "objects": [{ "x": 64, "y": 0, "width": 64, "height": 32 }]
+    },
     { "name": "workstations", "type": "objectgroup", "objects": [] },
     {
       "name": "room_zones",
