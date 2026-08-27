@@ -9,7 +9,10 @@ import {
 
 export interface OfficeRuntimeTransport {
   fetchSnapshot(): Promise<OfficeRuntimeSnapshot>;
-  subscribe(onEvent: (event: OfficeRuntimeEvent) => void): () => void;
+  subscribe(
+    onEvent: (event: OfficeRuntimeEvent) => void,
+    onReconnect?: () => void,
+  ): () => void;
 }
 
 export interface OfficeRuntimeClientCallbacks {
@@ -82,6 +85,22 @@ export class OfficeRuntimeClient {
     this.callbacks.onProjection(this.#projection);
     this.callbacks.onTelemetry?.({ event, kind: "event_applied" });
     this.emitConnection("LIVE", "Authoritative Office projection is live.");
+  }
+
+  private async rehydrateAfterReconnect(): Promise<void> {
+    this.emitConnection(
+      "RECONNECTING",
+      "SSE reconnected; rehydrating authoritative Office state.",
+    );
+    try {
+      await this.hydrate();
+      this.emitConnection("LIVE", "Authoritative Office projection is live.");
+    } catch {
+      this.emitConnection(
+        "ERROR",
+        "Office projection could not be rehydrated.",
+      );
+    }
   }
 
   private async hydrate(): Promise<void> {

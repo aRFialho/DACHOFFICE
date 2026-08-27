@@ -9,5 +9,8 @@ describe("App", () => {
     expect(markup).toContain("Office control plane");
     expect(markup).toContain("Local visual Office renderer");
     expect(markup).toContain("No authoritative task data is currently loaded.");
+    expect(markup).toContain(
+      "Set VITE_OFFICE_ID to connect the authoritative runtime projection.",
+    );
   });
 });
