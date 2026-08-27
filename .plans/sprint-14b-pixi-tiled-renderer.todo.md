@@ -112,14 +112,14 @@ No old renderer exists. Replace only the static Finance module in `App.tsx` once
 
 ### After implementation
 
-- [ ] PixiJS v8 installed and used only through renderer modules.
-- [ ] Tiled fixture has required visual, collision and semantic layers.
-- [ ] Parser/depth/registry tests are written first and pass.
-- [ ] Canvas respects 14A layer order and cleans up Pixi resources.
-- [ ] React has an accessible supplementary canvas shell.
-- [ ] Renderer has no API/provider/database import path.
-- [ ] Typecheck, lint, formatter, build, full tests and browser checks pass.
-- [ ] Diff and acceptance documentation reviewed.
+- [x] PixiJS v8 installed and used only through renderer modules.
+- [x] Tiled fixture has required visual, collision and semantic layers.
+- [x] Parser/depth/registry tests are written first and pass.
+- [x] Canvas respects 14A layer order and cleans up Pixi resources.
+- [x] React has an accessible supplementary canvas shell.
+- [x] Renderer has no API/provider/database import path.
+- [x] Typecheck, lint, formatter, build, full tests and browser checks pass.
+- [x] Diff and acceptance documentation reviewed.
 
 ## Commit sequence
 

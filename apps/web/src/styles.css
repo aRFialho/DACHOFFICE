@@ -53,6 +53,48 @@ a {
 
 .art-hero,
 .art-overview,
+.office-canvas {
+  background:
+    linear-gradient(135deg, rgba(23, 70, 81, 0.62), rgba(7, 22, 36, 0.94)),
+    #07111c;
+  border: 1px solid rgba(105, 217, 219, 0.4);
+  margin: 4rem auto 0;
+  max-width: 76rem;
+  overflow: hidden;
+  padding: clamp(1.2rem, 3vw, 2.2rem);
+}
+.office-canvas h2 {
+  margin: 0.45rem 0 1.2rem;
+}
+.office-canvas__host {
+  aspect-ratio: 16 / 8;
+  background:
+    radial-gradient(
+      circle at 50% 40%,
+      rgba(69, 189, 181, 0.12),
+      transparent 40%
+    ),
+    #081725;
+  min-height: 22rem;
+  overflow: hidden;
+  position: relative;
+}
+.office-canvas__view {
+  display: block;
+  height: 100%;
+  image-rendering: pixelated;
+  width: 100%;
+}
+.office-canvas__description,
+.office-canvas__status {
+  color: #adc2cd;
+  font-size: 0.86rem;
+  line-height: 1.5;
+  margin: 0.8rem 0 0;
+}
+.office-canvas__status {
+  color: #8ce9e4;
+}
 .art-system,
 .catalogue,
 .zones,
@@ -195,6 +237,48 @@ h3 {
   font-size: 2rem;
 }
 
+.office-canvas {
+  background:
+    linear-gradient(135deg, rgba(23, 70, 81, 0.62), rgba(7, 22, 36, 0.94)),
+    #07111c;
+  border: 1px solid rgba(105, 217, 219, 0.4);
+  margin: 4rem auto 0;
+  max-width: 76rem;
+  overflow: hidden;
+  padding: clamp(1.2rem, 3vw, 2.2rem);
+}
+.office-canvas h2 {
+  margin: 0.45rem 0 1.2rem;
+}
+.office-canvas__host {
+  aspect-ratio: 16 / 8;
+  background:
+    radial-gradient(
+      circle at 50% 40%,
+      rgba(69, 189, 181, 0.12),
+      transparent 40%
+    ),
+    #081725;
+  min-height: 22rem;
+  overflow: hidden;
+  position: relative;
+}
+.office-canvas__view {
+  display: block;
+  height: 100%;
+  image-rendering: pixelated;
+  width: 100%;
+}
+.office-canvas__description,
+.office-canvas__status {
+  color: #adc2cd;
+  font-size: 0.86rem;
+  line-height: 1.5;
+  margin: 0.8rem 0 0;
+}
+.office-canvas__status {
+  color: #8ce9e4;
+}
 .art-system,
 .catalogue,
 .zones {

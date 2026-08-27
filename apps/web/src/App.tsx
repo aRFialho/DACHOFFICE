@@ -5,7 +5,7 @@ import {
   officeSceneLayers,
   officeZones,
 } from "./office/art/index.js";
-import financeDeskAsset from "./office/assets/furniture/finance-analyst-desk-v1.png";
+import { OfficeCanvas } from "./office/components/OfficeCanvas.js";
 
 const categoryLabels = {
   floor: "Floors",
@@ -35,8 +35,8 @@ export const App = () => (
       </div>
       <aside className="sprint-badge" aria-label="Sprint ativa">
         <span>ACTIVE</span>
-        <strong>14A</strong>
-        <small>Art Bible + Asset System</small>
+        <strong>14B</strong>
+        <small>PixiJS + Tiled Renderer</small>
       </aside>
     </header>
 
@@ -67,24 +67,7 @@ export const App = () => (
       </article>
     </section>
 
-    <section className="asset-prototype" aria-labelledby="prototype-title">
-      <div>
-        <p className="eyebrow">REPRESENTATIVE MODULE</p>
-        <h2 id="prototype-title">Finance workstation, not a scene</h2>
-        <p>
-          This independently rendered desk establishes a first scale and palette
-          reference. Sprint 14B will position it through Tiled; this shell does
-          not assign it a room coordinate or an operational meaning.
-        </p>
-      </div>
-      <figure>
-        <img
-          alt="Isometric Finance analyst workstation with cyan monitors"
-          src={financeDeskAsset}
-        />
-        <figcaption>furniture.finance_analyst_desk.v1</figcaption>
-      </figure>
-    </section>
+    <OfficeCanvas />
 
     <section className="art-system" id="art-system" aria-labelledby="art-title">
       <div className="section-heading">
