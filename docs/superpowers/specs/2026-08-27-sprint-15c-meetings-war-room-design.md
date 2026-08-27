@@ -23,7 +23,7 @@ Render deterministic local preview scenarios for Daily Meeting, critical War Roo
 
 ## Approved Approach
 
-Sprint 15C will add a renderer-local fixture boundary rather than a provisional backend adapter. Each fixture is a semantic `OfficeVisualScenario`: it names agents, renderer animation states, semantic destination IDs, and optional presentation-only speech. The map resolves the destinations; Pixi renders the resulting arrangement. Sprint 15D will replace fixture selection with an event/snapshot adapter while preserving the scene-facing visual-model shape.
+Sprint 15C will add a renderer-local fixture boundary rather than a provisional backend adapter. Each fixture is a semantic `OfficeVisualScenario`: it names agents, renderer animation states, semantic destination IDs, and optional presentation-only speech. The map resolves the destinations; Pixi uses the existing A\* route projection and a renderer-local ticker to move fixture agents to the resulting arrangement. Sprint 15D will replace fixture selection with an event/snapshot adapter while preserving the scene-facing visual-model shape.
 
 ## Scenario Model
 
@@ -78,11 +78,12 @@ Every object keeps `destinationId`, `officeZone`, and `walkable` properties. Lay
 
 1. resolve the selected immutable scenario;
 2. resolve each fixture destination from the parsed map;
-3. create a representative agent sprite with the 15B atlas loader and frame selector;
-4. place a short Pixi `Text` speech bubble only when the fixture explicitly contains `speech`;
-5. label scene objects as local fixture elements for deterministic renderer tests.
+3. resolve a deterministic local route from each fixture start destination to its target destination, then interpolate its sprite with a Pixi ticker while it displays the approved `WALKING` frame;
+4. transition the arrived sprite to its scenario animation state;
+5. place a short Pixi `Text` speech bubble only when the fixture explicitly contains `speech`;
+6. label scene objects as local fixture elements for deterministic renderer tests.
 
-The critical fixture uses `ALERT` frames and a `CRITICAL` bubble. Daily Meeting uses `MEETING`; Refresh uses `REFRESHING`; Off-duty uses `IDLE` at the exit because 14A has no dedicated off-duty frame. This is a presentation convention only, documented in the scenario label. No movement interpolation is introduced: 15A routes remain available for future authoritative destination changes, and 15D remains the only integration slice.
+The critical fixture uses `ALERT` frames and a `CRITICAL` bubble. Daily Meeting uses `MEETING`; Refresh uses `REFRESHING`; Off-duty uses `IDLE` at the exit because 14A has no dedicated off-duty frame. This is a presentation convention only, documented in the scenario label. Movement interpolation is renderer-local presentation: it starts and ends only from immutable fixture destinations and never signals a backend completion. 15D remains the only integration slice.
 
 ## Accessible React Boundary
 
@@ -90,11 +91,11 @@ The critical fixture uses `ALERT` frames and a `CRITICAL` bubble. Daily Meeting 
 
 ## Tests and Acceptance Evidence
 
-- Unit tests prove every scenario contains only known animation states and map destination IDs.
+- Unit tests prove every scenario contains only known animation states, map destination IDs, and deterministic local movement intents.
 - Unit tests prove Daily Meeting has configured seat participants, War Room contains critical participants and speech, and Refresh/Off-duty use their correct workforce-presentation states.
 - Tiled-map tests prove the required semantic destinations and zones are parseable.
 - Renderer boundary tests keep scenario modules free of live transport/backend concerns.
-- Existing scene tests prove the default scenario is assembled through the local renderer composition.
+- Existing scene tests prove the default scenario is assembled through the local renderer composition and routes each configured participant through renderer-owned map geometry.
 - Playwright captures the desktop and 390 px local preview. A small fixture-only selector in test harness code, not production control UI, will capture all four named scenario states.
 - Full validation is `corepack pnpm build`, then `corepack pnpm test`, `corepack pnpm typecheck`, `corepack pnpm lint`, `corepack pnpm format:check`, and both staged/unstaged `git diff --check` commands.
 
