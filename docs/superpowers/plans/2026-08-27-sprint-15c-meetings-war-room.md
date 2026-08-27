@@ -10,6 +10,10 @@
 
 **Spec:** `docs/superpowers/specs/2026-08-27-sprint-15c-meetings-war-room-design.md`
 
+## Status
+
+Completed and ready for publication.
+
 ## Global Constraints
 
 - Read `AGENTS.md`, the spec, and Sprints 15A/15B documents before implementation.
@@ -38,7 +42,7 @@
 - Produces: `OfficeVisualScenarioId`, `OfficeVisualAgentFixture`, `OfficeVisualScenario`, and `resolveOfficeVisualScenario(id)`.
 - Produces map IDs `MEETING_MAIN_SEAT_01..03`, `WAR_ROOM_SEAT_01..03`, `REFRESH_COFFEE_01..02`, and `OFF_DUTY_EXIT_01`.
 
-- [ ] **Step 1: Write failing fixture tests**
+- [x] **Step 1: Write failing fixture tests**
 
 ```ts
 expect(resolveOfficeVisualScenario("DAILY_MEETING").agents).toEqual(
@@ -60,13 +64,13 @@ expect(resolveOfficeVisualScenario("WAR_ROOM_CRITICAL").agents).toEqual(
 );
 ```
 
-- [ ] **Step 2: Verify the intended red state**
+- [x] **Step 2: Verify the intended red state**
 
 Run: `corepack pnpm --filter @dachbyte-office/web test -- office-visual-scenario.test.ts`
 
 Expected: FAIL because `office-visual-scenario.ts` is not present.
 
-- [ ] **Step 3: Implement immutable scenarios**
+- [x] **Step 3: Implement immutable scenarios**
 
 ```ts
 export interface OfficeVisualAgentFixture {
@@ -87,11 +91,11 @@ export const resolveOfficeVisualScenario = (
 
 Create four fixtures: Daily Meeting has three `MEETING` participants; War Room has three `ALERT` participants and one critical bubble; Refresh has two `REFRESHING` participants; Off-duty has one `IDLE` participant traveling to the exit.
 
-- [ ] **Step 4: Add semantic Tiled zones and destinations**
+- [x] **Step 4: Add semantic Tiled zones and destinations**
 
 Add `MEETING`, `WAR_ROOM`, `REFRESH`, and `ENTRANCE` zones plus all required destination objects to the `destinations` layer. Each object must provide `destinationId`, `officeZone`, and boolean `walkable: true`; coordinates stay in the map and visible Office composition.
 
-- [ ] **Step 5: Extend map parser fixture tests**
+- [x] **Step 5: Extend map parser fixture tests**
 
 ```ts
 expect(map.destinations.map((destination) => destination.id)).toEqual(
@@ -106,7 +110,7 @@ expect(map.destinations.map((destination) => destination.id)).toEqual(
 
 Also prove parsed destination zones include `MEETING`, `WAR_ROOM`, and `REFRESH`.
 
-- [ ] **Step 6: Verify Task 1 and commit**
+- [x] **Step 6: Verify Task 1 and commit**
 
 Run: `corepack pnpm --filter @dachbyte-office/web test -- office-visual-scenario.test.ts office-prototype-navigation.test.ts tiled-map.test.ts`
 
@@ -133,7 +137,7 @@ git commit -m "feat(web): add office visual scenarios"
 - Produces: `createFixtureAgentRoute(input)` and `positionForFixtureRoute(route, progress)`.
 - Produces: `createSpeechBubble({ text, severity })` returning a Pixi `Container` labeled `local-fixture-speech-*`.
 
-- [ ] **Step 1: Write failing route and bubble tests**
+- [x] **Step 1: Write failing route and bubble tests**
 
 ```ts
 const route = createFixtureAgentRoute({
@@ -150,13 +154,13 @@ expect(positionForFixtureRoute(route, 1)).toEqual(route.target);
 
 Test progress clamping, a missing semantic destination, and a critical bubble label/palette output.
 
-- [ ] **Step 2: Verify the intended red state**
+- [x] **Step 2: Verify the intended red state**
 
 Run: `corepack pnpm --filter @dachbyte-office/web test -- fixture-agent-route.test.ts speech-bubble.test.ts`
 
 Expected: FAIL because both modules are missing.
 
-- [ ] **Step 3: Implement route projection and interpolation**
+- [x] **Step 3: Implement route projection and interpolation**
 
 ```ts
 export const positionForFixtureRoute = (
@@ -174,7 +178,7 @@ export const positionForFixtureRoute = (
 
 Resolve source/target by semantic ID, call existing renderer-owned path planning, and project cells with `projectOfficeNavigationRoute`. Keep the helper free of Pixi, time, and React state.
 
-- [ ] **Step 4: Implement overlay-only bubbles**
+- [x] **Step 4: Implement overlay-only bubbles**
 
 ```ts
 export const createSpeechBubble = ({
@@ -189,7 +193,7 @@ export const createSpeechBubble = ({
 
 Use `officeArtTokens.palette.critical` for critical emphasis and immutable fixture text. Do not accept task IDs, action IDs, commands, or events.
 
-- [ ] **Step 5: Preserve the renderer boundary and commit**
+- [x] **Step 5: Preserve the renderer boundary and commit**
 
 Extend `renderer-boundary.test.ts` only if the existing directory scan does not already include these files.
 
@@ -218,7 +222,7 @@ git commit -m "feat(web): add local fixture route playback"
 - Produces: `OfficeSceneOptions.scenarioId?: OfficeVisualScenarioId`; default is `DAILY_MEETING`.
 - Preserves: `OfficeCanvasProps` has no live-state, coordinate, or control callback.
 
-- [ ] **Step 1: Write failing composition and accessibility tests**
+- [x] **Step 1: Write failing composition and accessibility tests**
 
 ```ts
 expect(createOfficeSceneModel(officePrototypeMap).destinations).toEqual(
@@ -234,13 +238,13 @@ expect(renderToStaticMarkup(<OfficeCanvas />)).toContain(
 
 Add a source-level contract test that the default is local `DAILY_MEETING`, never a live backend state.
 
-- [ ] **Step 2: Verify the intended red state**
+- [x] **Step 2: Verify the intended red state**
 
 Run: `corepack pnpm --filter @dachbyte-office/web test -- office-fixture-composition.test.ts office-canvas.test.tsx office-scene-navigation.test.ts`
 
 Expected: FAIL until scenario composition exists.
 
-- [ ] **Step 3: Render fixture agents using Pixi ticker playback**
+- [x] **Step 3: Render fixture agents using Pixi ticker playback**
 
 ```ts
 private async drawFixtureAgents(
@@ -257,11 +261,11 @@ private async drawFixtureAgents(
 
 Use `dynamic` for sprites and `overlays` for bubbles. Show `WALKING` before arrival and the fixture final state after arrival. Route completion must not create a command, event, task, or request.
 
-- [ ] **Step 4: Make preview copy explicit**
+- [x] **Step 4: Make preview copy explicit**
 
 Update `OfficeCanvas` to say it renders local fixture scenarios with no live meeting, incident, workforce, task, or action data. Do not add a visible selector or operational control.
 
-- [ ] **Step 5: Verify Task 3 and visual states**
+- [x] **Step 5: Verify Task 3 and visual states**
 
 Run: `corepack pnpm --filter @dachbyte-office/web test`
 
@@ -269,7 +273,7 @@ Run: `corepack pnpm --filter @dachbyte-office/web build`
 
 Use Playwright for desktop and 390 px Daily Meeting screenshots. Mount each remaining fixture through test-only scene options and inspect speech placement, critical emphasis, Refresh grouping, Off-duty exit placement, and console output.
 
-- [ ] **Step 6: Commit Task 3**
+- [x] **Step 6: Commit Task 3**
 
 ```bash
 git add -- apps/web/src/office/renderer/office-scene.ts apps/web/src/office/components/OfficeCanvas.tsx apps/web/test/office-scene-navigation.test.ts apps/web/test/office-canvas.test.tsx apps/web/test/office-fixture-composition.test.ts
@@ -288,11 +292,11 @@ git commit -m "feat(web): render meeting and war room fixtures"
 - Consumes: completed scenarios, map destinations, routes, browser screenshots, and test output.
   - Produces: a truthful fixture-only acceptance record and completed plan checklist.
 
-- [ ] **Step 1: Document acceptance evidence**
+- [x] **Step 1: Document acceptance evidence**
 
 Record scenario IDs, map destination ownership, final animation states, bubble boundary, browser viewports, and the 15D snapshot/SSE handoff. State plainly that the scenarios are not live operational state.
 
-- [ ] **Step 2: Run fresh full verification**
+- [x] **Step 2: Run fresh full verification**
 
 ```bash
 corepack pnpm build
@@ -306,7 +310,7 @@ git diff --cached --check
 
 Expected: all commands exit 0; capture exact web and workspace test counts.
 
-- [ ] **Step 3: Review acceptance and publish**
+- [x] **Step 3: Review acceptance and publish**
 
 Confirm Daily participants gather at configured seats, critical fixtures route to War Room, Refresh/Off-duty remain local workforce presentation, bubbles are fixture-only, and no transport/backend dependency exists.
 
