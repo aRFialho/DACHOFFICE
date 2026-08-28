@@ -1,0 +1,355 @@
+:root {
+  background: #06121b;
+  color: #eaf7f5;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-synthesis: none;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+}
+
+button,
+a {
+  font: inherit;
+}
+
+.skip-link {
+  background: #b5fff2;
+  color: #03131a;
+  left: 1rem;
+  padding: 0.72rem 1rem;
+  position: fixed;
+  top: -4rem;
+  z-index: 10;
+}
+
+.skip-link:focus {
+  top: 1rem;
+}
+
+.control-page {
+  background:
+    radial-gradient(
+      circle at 10% 0%,
+      rgba(52, 192, 184, 0.22),
+      transparent 32rem
+    ),
+    radial-gradient(
+      circle at 96% 34%,
+      rgba(103, 106, 207, 0.17),
+      transparent 33rem
+    ),
+    linear-gradient(145deg, #06121b, #071d29 53%, #0a1729);
+  min-height: 100vh;
+  padding: clamp(1rem, 3vw, 2.75rem);
+  position: relative;
+}
+
+.control-page::before {
+  background-image:
+    linear-gradient(rgba(137, 238, 230, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(137, 238, 230, 0.035) 1px, transparent 1px);
+  background-size: 2.2rem 2.2rem;
+  content: "";
+  inset: 0;
+  pointer-events: none;
+  position: fixed;
+}
+
+.office-control-shell,
+.control-page__footer {
+  margin: 0 auto;
+  max-width: 92rem;
+  position: relative;
+}
+
+.office-control-shell {
+  padding-top: clamp(2.8rem, 7vw, 6.5rem);
+}
+
+.office-control-shell__header {
+  align-items: end;
+  display: grid;
+  gap: 2rem;
+  grid-template-columns: minmax(0, 1fr) minmax(16rem, 0.42fr);
+  margin-bottom: 1.5rem;
+}
+
+.office-control-shell__eyebrow,
+.office-control-panel__eyebrow {
+  color: #8bf3e4;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  margin: 0 0 0.75rem;
+  text-transform: uppercase;
+}
+
+h1,
+h2,
+p {
+  margin-top: 0;
+}
+
+h1,
+h2 {
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 500;
+}
+
+h1 {
+  font-size: clamp(3rem, 7.5vw, 6.7rem);
+  letter-spacing: -0.075em;
+  line-height: 0.83;
+  margin-bottom: 1.2rem;
+}
+
+h2 {
+  font-size: clamp(1.55rem, 3vw, 2.35rem);
+  letter-spacing: -0.045em;
+  line-height: 0.95;
+}
+
+.office-control-shell__lede {
+  color: #b2cbd0;
+  font-size: clamp(1rem, 1.35vw, 1.15rem);
+  line-height: 1.6;
+  margin-bottom: 0;
+  max-width: 43rem;
+}
+
+.office-control-connection {
+  align-items: flex-start;
+  background: rgba(7, 27, 37, 0.82);
+  border: 1px solid rgba(139, 243, 228, 0.43);
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: auto 1fr;
+  padding: 1rem;
+}
+
+.office-control-connection__marker {
+  background: #ffc66d;
+  box-shadow:
+    0 0 0 4px rgba(255, 198, 109, 0.12),
+    0 0 1.3rem rgba(255, 198, 109, 0.56);
+  height: 0.55rem;
+  margin-top: 0.28rem;
+  width: 0.55rem;
+}
+
+.office-control-connection p,
+.office-control-connection strong,
+.office-control-connection small {
+  display: block;
+}
+
+.office-control-connection p {
+  color: #8bf3e4;
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  margin-bottom: 0.28rem;
+  text-transform: uppercase;
+}
+
+.office-control-connection strong {
+  font-size: 0.9rem;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.45rem;
+}
+
+.office-control-connection small {
+  color: #a9c1c7;
+  font-size: 0.79rem;
+  line-height: 1.45;
+}
+
+.office-control-shell__grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(0, 1.64fr) minmax(17rem, 0.7fr);
+}
+
+.office-control-scene,
+.office-control-shell__rail {
+  border: 1px solid rgba(160, 229, 226, 0.22);
+  box-shadow: 0 1.4rem 3.4rem rgba(0, 0, 0, 0.21);
+}
+
+.office-control-scene {
+  background: linear-gradient(
+    145deg,
+    rgba(16, 57, 68, 0.79),
+    rgba(5, 20, 34, 0.96)
+  );
+  overflow: hidden;
+}
+
+.office-canvas {
+  padding: clamp(1rem, 2vw, 1.4rem);
+}
+
+.office-canvas h2 {
+  margin: 0.4rem 0 1rem;
+}
+
+.office-canvas__host {
+  aspect-ratio: 16 / 8;
+  background:
+    radial-gradient(
+      circle at 50% 40%,
+      rgba(69, 189, 181, 0.14),
+      transparent 43%
+    ),
+    #081725;
+  min-height: 20rem;
+  overflow: hidden;
+  position: relative;
+}
+
+.office-canvas__view {
+  display: block;
+  height: 100%;
+  image-rendering: pixelated;
+  width: 100%;
+}
+
+.office-canvas__description,
+.office-canvas__status,
+.office-control-scene__notice {
+  color: #adc5cb;
+  font-size: 0.84rem;
+  line-height: 1.52;
+}
+
+.office-canvas__description,
+.office-canvas__status {
+  margin: 0.78rem 0 0;
+}
+
+.office-canvas__status {
+  color: #8bf3e4;
+}
+
+.office-control-scene__notice {
+  border-top: 1px solid rgba(160, 229, 226, 0.18);
+  margin: 0;
+  padding: 1rem clamp(1rem, 2vw, 1.4rem) 1.1rem;
+}
+
+.office-control-shell__rail {
+  background: rgba(5, 19, 30, 0.79);
+  display: grid;
+  gap: 1px;
+}
+
+.office-control-panel {
+  background: linear-gradient(
+    125deg,
+    rgba(14, 42, 55, 0.84),
+    rgba(8, 27, 41, 0.94)
+  );
+  min-height: 10.2rem;
+  padding: 1.25rem;
+  position: relative;
+}
+
+.office-control-panel::before {
+  background: #8bf3e4;
+  content: "";
+  height: 0.22rem;
+  left: 1.25rem;
+  position: absolute;
+  top: 0;
+  width: 3.5rem;
+}
+
+.office-control-panel__eyebrow {
+  color: #90c8d2;
+  margin-top: 1rem;
+}
+
+.office-control-panel h2 {
+  font-size: 1.75rem;
+  margin-bottom: 0.65rem;
+}
+
+.office-control-panel__empty {
+  color: #c1d3d7;
+  font-size: 0.87rem;
+  line-height: 1.52;
+  margin-bottom: 0;
+}
+
+.control-page__footer {
+  border-top: 1px solid rgba(160, 229, 226, 0.18);
+  color: #9cb7bd;
+  font-size: 0.82rem;
+  line-height: 1.55;
+  margin-top: 2.5rem;
+  max-width: 92rem;
+  padding-top: 1rem;
+}
+
+.control-page__footer p {
+  margin-bottom: 0;
+  max-width: 48rem;
+}
+
+:focus-visible {
+  outline: 3px solid #b5fff2;
+  outline-offset: 3px;
+}
+
+@media (max-width: 800px) {
+  .office-control-shell__header,
+  .office-control-shell__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .office-control-shell__header {
+    align-items: start;
+  }
+
+  .office-control-shell__rail {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .office-control-panel {
+    min-height: 9.4rem;
+  }
+}
+
+@media (max-width: 620px) {
+  .control-page {
+    padding: 1rem;
+  }
+
+  .office-control-shell {
+    padding-top: 3.2rem;
+  }
+
+  .office-canvas__host {
+    min-height: 16rem;
+  }
+
+  .office-control-shell__rail {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0ms !important;
+  }
+}

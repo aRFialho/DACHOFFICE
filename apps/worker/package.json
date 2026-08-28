@@ -1,0 +1,28 @@
+{
+  "name": "@dachbyte-office/worker",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/apps/worker/src/server.js",
+    "bootstrap:tray": "node dist/apps/worker/src/scripts/bootstrap-tray-connection.js",
+    "test": "vitest run --exclude dist/**",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "queue:smoke": "vitest run test/worker.test.ts"
+  },
+  "devDependencies": {
+    "@types/node": "25.5.0",
+    "@types/pg": "8.15.6",
+    "typescript": "7.0.2",
+    "vitest": "4.1.10"
+  },
+  "dependencies": {
+    "@dachbyte-office/catalog": "workspace:*",
+    "@dachbyte-office/finance": "workspace:*",
+    "@dachbyte-office/margin-agent": "workspace:*",
+    "@dachbyte-office/pricing-agent": "workspace:*",
+    "exceljs": "4.4.0",
+    "pg": "8.23.0"
+  }
+}

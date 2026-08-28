@@ -1,0 +1,28 @@
+{
+  "name": "dachbyte-office",
+  "version": "0.0.0",
+  "private": true,
+  "packageManager": "pnpm@11.20.0",
+  "engines": {
+    "node": ">=24.0.0 <25"
+  },
+  "scripts": {
+    "build": "pnpm -r --if-present build",
+    "test": "pnpm -r --if-present test",
+    "test:integration": "pnpm --filter @dachbyte-office/worker test",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "lint": "eslint .",
+    "format:check": "prettier --check .",
+    "queue:smoke": "pnpm --filter @dachbyte-office/worker queue:smoke",
+    "db:health": "node --env-file=.env scripts/db-health.mjs",
+    "db:migrate": "node --env-file=.env scripts/db-migrate.mjs",
+    "bootstrap:admin": "pnpm --filter @dachbyte-office/api build && node --env-file=.env apps/api/dist/src/scripts/bootstrap-admin.js"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.39.1",
+    "eslint": "9.39.1",
+    "pg": "8.23.0",
+    "prettier": "3.8.2",
+    "typescript-eslint": "8.64.0"
+  }
+}
